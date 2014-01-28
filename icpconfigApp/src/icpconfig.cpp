@@ -149,7 +149,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 	char line_buffer[512];
 	char** pairs = NULL;
 	std::ifstream input_file;
-	input_file.open(file, std::ios::in);
+	input_file.open(file.c_str(), std::ios::in);
 	if ( !input_file.good() )
 	{
 		errlogPrintf("icpconfigLoad: failed (cannot load file \"%s\")\n", file.c_str());
