@@ -21,7 +21,7 @@ testicpconfig_registerRecordDeviceDriver pdbbase
 ## Run this to trace the stages of iocInit
 #traceIocInit
 
-icpconfigLoad ${IOC} "${TOP}/iocBoot/${IOC}/config.txt"
+icpconfigLoad 3 ${IOC} "${TOP}/iocBoot/${IOC}/test_config"
 
 cd ${TOP}/iocBoot/${IOC}
 
