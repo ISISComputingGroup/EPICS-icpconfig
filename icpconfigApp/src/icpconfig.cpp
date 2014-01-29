@@ -141,14 +141,14 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	{
 	    config_host = configHost;
 	}
-	printf("icpconfigLoad: IOC name \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
+	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
 	std::string config_dir = configDir;
 	if (config_host.size() > 0)
 	{
 		config_dir += "/";
 		config_dir += config_host;
 	}
-	printf("icpconfigLoad: config dir \"%s\"\n", config_dir.c_str());
+	printf("icpconfigLoad: dir \"%s\"\n", config_dir.c_str());
     if ( macCreateHandle(&h, NULL) )
 	{
 		errlogPrintf("icpconfigLoad: failed (macCreateHandle)\n");
@@ -175,7 +175,15 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
-	printf("icpconfigLoad: loading config \"%s\"\n", config_name.c_str());
+	static int depth = 0;
+	static const std::string stars = "**************************************************************************************************************************";
+	if (depth > 20)
+	{
+		errlogPrintf("icpconfigLoad failed (recursion depth)\n");
+		return -1;
+	}
+	++depth;
+	printf("icpconfigLoad: %s config \"%s\"\n", stars.substr(0,depth).c_str(), config_name.c_str());
 	std::list<std::string> config_file_list;
 	std::string config_base = config_dir + "/" + config_name + "/";
 //	DIR* dir = opendir(config_base.c_str());
@@ -192,13 +200,21 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 	{
 		loadFile(h, *it, config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	}
+	--depth;
 	return 0;
 }
 
 static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
+	static int depth = 0;
+	static const std::string stars = "**************************************************************************************************************************";
 	char line_buffer[512];
 	char** pairs = NULL;
+	if (depth > 20)
+	{
+		errlogPrintf("icpconfigLoad failed (recursion depth)\n");
+		return -1;
+	}
 	std::ifstream input_file;
 	input_file.open(file.c_str(), std::ios::in);
 	if ( !input_file.good() )
@@ -211,7 +227,8 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 	}
 	std::string prefix_name = ioc_name + "__";
 	std::string prefix_group = ioc_group + "__";
-	printf("icpconfigLoad: Loading definitions for \"%s\" from \"%s\"\n", ioc_name.c_str(), file.c_str());
+	++depth;
+	printf("icpconfigLoad: %s file \"%s\"\n", stars.substr(0,depth).c_str(), file.c_str());
 	unsigned nval = 0, nval_ioc = 0, nval_group = 0, line_number = 0;
 	while(input_file.good())
 	{
@@ -220,8 +237,17 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		++line_number;
 		if (line_buffer[0] == '<')
 		{
-			/// need to add directory name of "file" to this
-			loadFile(h, trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			// need to add directory name of "file"
+			std::string s = trim_string(line_buffer + 1);
+			size_t pos = file.find_last_of("\\/");
+			if (pos != std::string::npos)
+			{
+				loadFile(h, file.substr(0,pos+1)+trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			}
+			else
+			{
+				loadFile(h, trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			}
 			continue;
 		}
 		if (line_buffer[0] == '+')
@@ -233,6 +259,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		{
 			errlogPrintf("icpconfigLoad: failed (macParseDefns) for \"%s\" from \"%s\" line %d\n", line_buffer, file.c_str(), line_number);
 			input_file.close();
+			--depth;
 			return -1;
 		}
 		macInstallMacros( h, pairs );
@@ -263,13 +290,14 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 				++nval_ioc;
 				macPutValue(h, pairs[i] + prefix_name.size(), pairs[i+1]);
 				epicsEnvSet(pairs[i] + prefix_name.size(), pairs[i+1]);
-				printf("icpconfigLoad: $(%s)=\"%s\" (IOC \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
+				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
 			}
 		}
 		free(pairs);
 	}		
 	input_file.close();
-	printf("icpconfigLoad: set %u macros from \"%s\" (%d IOC, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
+	printf("icpconfigLoad: %s set %u macros (%d ioc, %d group)\n", stars.substr(0,depth).c_str(), nval, nval_ioc, nval_group);
+	--depth;
     return 0;
 }
 
