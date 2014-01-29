@@ -39,8 +39,34 @@
 enum icpOptions { VerboseOutput = 0x1, IgnoreHostName = 0x2 };
 
 extern "C" int icpconfigLoad(int options, const char *iocName, const char* configDir);
-static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool filter);
-static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool filter);
+static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
+static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
+
+static bool nullOrZeroLength(const char* str)
+{
+    return (str == NULL) || (str[0] == '\0'); 
+}
+
+static std::string trim_string(const std::string& str)
+{
+	static const char* whitespace = " \n\r\t\f\v";
+    std::string s = str;
+	size_t pos = s.find_last_not_of(whitespace);
+	if (pos != std::string::npos)
+	{
+		s.erase(pos+1); // trim end
+	}
+	else
+	{
+		s.clear(); // all whitespace
+	}
+	pos = s.find_first_not_of(whitespace);
+	if (pos != std::string::npos)
+	{
+		s.erase(0, pos); // trim start
+	}
+	return s;
+}
 
 int icpconfigLoad(int options, const char *iocName, const char* configDir)
 {
@@ -49,13 +75,13 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	{
 		configDir = macEnvExpand("$(ICPCONFIGDIR)");
 	}
-	if (configDir == NULL)
+	if (nullOrZeroLength(configDir))
 	{
 		errlogPrintf("icpconfigLoad failed (ICPCONFIGDIR environment variable not set and no configDir parameter specified)\n");
 		return -1;
 	}
 	const char* configHost = macEnvExpand("$(ICPCONFIGHOST)");
-	if (configHost == NULL)
+	if (nullOrZeroLength(configHost))
 	{
 		errlogPrintf("icpconfigLoad failed (ICPCONFIGHOST environment variable not set)\n");
 		return -1;
@@ -70,9 +96,9 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	{
 	    iocBootDir = iocName;
 	}
-	if (iocBootDir == NULL)
+	if (nullOrZeroLength(iocBootDir))
 	{
-		errlogPrintf("icpconfigLoad failed (IOC environment variable not set)\n");
+		errlogPrintf("icpconfigLoad failed (IOC environment variable not set and no IOC name specified)\n");
 		return -1;
 	}
 	// The IOC name may be a boot directory, in whihc case strip of the initial ioc prefix
@@ -80,7 +106,7 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	std::transform(iocBootDir_s.begin(), iocBootDir_s.end(), iocBootDir_s.begin(), ::toupper); // uppercase
 	std::replace(iocBootDir_s.begin(), iocBootDir_s.end(), '-', '_'); // hyphen to underscore
 	std::string ioc_name, ioc_group; 
-	if (!iocBootDir_s.compare(0, 3, "IOC"))
+	if (!iocBootDir_s.compare(0, 3, "IOC")) // are we a boot area (iocYYYY) rather than an ioc name
 	{
 		ioc_name = iocBootDir_s.substr(3);
 	}
@@ -89,18 +115,33 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 		ioc_name = iocBootDir_s;
 	}
 	// strip off -IOC-01 trailer to get IOC group, and remove -IOC- to get ioc name
-	size_t pos = ioc_name.find("-IOC-");
+	size_t pos = ioc_name.find("_IOC_");
 	if (pos != std::string::npos)
 	{
 	    ioc_group = ioc_name.substr(0, pos); 
-		ioc_name.erase(pos, strlen("-IOC-"));
+		ioc_name.erase(pos, strlen("_IOC_"));
+	}
+	else if ( (pos = ioc_name.rfind("_")) != std::string::npos )   // old style nameing e.g. DEVICE32_01
+	{
+		if (atoi(ioc_name.substr(pos).c_str()) > 0)
+		{
+			ioc_group = ioc_name.substr(0, pos); 
+		}
+		else
+		{
+			ioc_group = ioc_name; 
+		}
+	}
+	else
+	{
+	    ioc_group = ioc_name; 
 	}
 	std::string config_host;
 	if (!(options & IgnoreHostName))
 	{
 	    config_host = configHost;
 	}
-	printf("icpconfigLoad: IOC name \"%s\" group \"%s\" options 0x%x host %s\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
+	printf("icpconfigLoad: IOC name \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
 	std::string config_dir = configDir;
 	if (config_host.size() > 0)
 	{
@@ -114,37 +155,47 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	    return -1;
 	}
 //  macSuppressWarning(h, TRUE);
-	loadConfig(h, "", config_dir, ioc_name, ioc_group, false); // globals
-    loadFile(h, config_dir + "/config.txt", "", config_dir, ioc_name, ioc_group, false);
+	loadConfig(h, "", config_dir, ioc_name, ioc_group, false, false, verbose); // globals
+	loadFile(h, config_dir + "/config.txt", "", config_dir, ioc_name, ioc_group, true, false, verbose);
 	const char* configName = macEnvExpand("$(ICPCONFIGNAME)");
-	if (configName == NULL)
+	if (nullOrZeroLength(configName))
 	{
 		errlogPrintf("icpconfigLoad failed (ICPCONFIGNAME environment variable not set)\n");
 		macDeleteHandle(h);
 		return -1;
 	}
-	loadConfig(h, configName, config_dir, ioc_name, ioc_group, false);
-//	macReportMacros(h);  // needs macInstallMacros() above uncommented too
+	loadConfig(h, configName, config_dir, ioc_name, ioc_group, false, false, verbose);
+	if (verbose)
+	{
+		macReportMacros(h);
+	}
 	macDeleteHandle(h);
 	return 0;
 }	
 
-static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool filter)
+static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	printf("icpconfigLoad: loading config \"%s\"\n", config_name.c_str());
 	std::list<std::string> config_file_list;
 	std::string config_base = config_dir + "/" + config_name + "/";
+//	DIR* dir = opendir(config_base.c_str());
+//	if (dir == NULL)
+//	{
+//		errlogPrintf("icpconfigLoad failed (\"%s\" directory does not exist)\n", config_base.c_str());
+//		return -1;
+//	}
+//	closedir(dir);
 	config_file_list.push_back(config_base + "globals.txt");
 	config_file_list.push_back(config_base + ioc_group + ".txt");
 	config_file_list.push_back(config_base + ioc_name + ".txt");
 	for(std::list<std::string>::const_iterator it = config_file_list.begin(); it != config_file_list.end(); ++it)
 	{
-		loadFile(h, *it, config_name, config_dir, ioc_name, ioc_group, filter);
+		loadFile(h, *it, config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	}
 	return 0;
 }
 
-static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool filter)
+static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	char line_buffer[512];
 	char** pairs = NULL;
@@ -152,25 +203,30 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 	input_file.open(file.c_str(), std::ios::in);
 	if ( !input_file.good() )
 	{
-		errlogPrintf("icpconfigLoad: failed (cannot load file \"%s\")\n", file.c_str());
+		if (warn_if_not_found)
+		{
+			errlogPrintf("icpconfigLoad: failed (cannot load file \"%s\")\n", file.c_str());
+		}
 		return -1;
 	}
-	std::string prefix1 = ioc_name + "__";
-	std::string prefix2 = ioc_group + "__";
+	std::string prefix_name = ioc_name + "__";
+	std::string prefix_group = ioc_group + "__";
 	printf("icpconfigLoad: Loading definitions for \"%s\" from \"%s\"\n", ioc_name.c_str(), file.c_str());
-	unsigned nval = 0, line_number = 0;
+	unsigned nval = 0, nval_ioc = 0, nval_group = 0, line_number = 0;
 	while(input_file.good())
 	{
+		line_buffer[0] = '\0';
 		input_file.getline(line_buffer, sizeof(line_buffer)-1);
 		++line_number;
 		if (line_buffer[0] == '<')
 		{
-			loadFile(h, line_buffer + 1, config_name, config_dir, ioc_name, ioc_group, filter);
+			/// need to add directory name of "file" to this
+			loadFile(h, trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			continue;
 		}
 		if (line_buffer[0] == '+')
 		{
-			loadConfig(h, line_buffer + 1, config_dir, ioc_name, ioc_group, filter);
+			loadConfig(h, trim_string(line_buffer + 1), config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			continue;
 		}
 		if (macParseDefns( h, line_buffer, &pairs ) == -1)
@@ -182,30 +238,38 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		macInstallMacros( h, pairs );
 		for(int i=0; pairs[i] != NULL; i += 2)
 		{
+			if (pairs[i+1] == NULL)
+			{
+				continue;
+			}
 			std::string s(pairs[i]);
 			if (!filter)
 			{
 				++nval;
 				epicsEnvSet(pairs[i], pairs[i+1]);
-				printf("icpconfigLoad: set $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
+				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
 			}
-			if ( 0 == s.compare(0, prefix1.size(), prefix1) )
+			if ( 0 == s.compare(0, prefix_group.size(), prefix_group) )
 			{
 				++nval;
-				epicsEnvSet(pairs[i] + prefix1.size(), pairs[i+1]);
-				printf("icpconfigLoad: set $(%s)=\"%s\"\n", pairs[i] + prefix1.size(), pairs[i+1]);
+				++nval_group;
+				macPutValue(h, pairs[i] + prefix_group.size(), pairs[i+1]);
+				epicsEnvSet(pairs[i] + prefix_group.size(), pairs[i+1]);
+				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
 			}
-			if (0 == s.compare(0, prefix2.size(), prefix2))
+			if (0 == s.compare(0, prefix_name.size(), prefix_name))
 			{
 				++nval;
-				epicsEnvSet(pairs[i] + prefix1.size(), pairs[i+1]);
-				printf("icpconfigLoad: set $(%s)=\"%s\"\n", pairs[i] + prefix1.size(), pairs[i+1]);
+				++nval_ioc;
+				macPutValue(h, pairs[i] + prefix_name.size(), pairs[i+1]);
+				epicsEnvSet(pairs[i] + prefix_name.size(), pairs[i+1]);
+				printf("icpconfigLoad: $(%s)=\"%s\" (IOC \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
 			}
 		}
 		free(pairs);
 	}		
 	input_file.close();
-	printf("icpconfigLoad: loaded %u definitions\n", nval);
+	printf("icpconfigLoad: set %u macros from \"%s\" (%d IOC, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
     return 0;
 }
 
