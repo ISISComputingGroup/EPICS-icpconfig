@@ -34,6 +34,8 @@
 #include "macLib.h"
 #include "errlog.h"
 
+#include "utilities.h"
+
 #include <epicsExport.h>
 
 enum icpOptions { VerboseOutput = 0x1, IgnoreHostName = 0x2 };
@@ -45,27 +47,6 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 static bool nullOrZeroLength(const char* str)
 {
     return (str == NULL) || (str[0] == '\0'); 
-}
-
-static std::string trim_string(const std::string& str)
-{
-	static const char* whitespace = " \n\r\t\f\v";
-    std::string s = str;
-	size_t pos = s.find_last_not_of(whitespace);
-	if (pos != std::string::npos)
-	{
-		s.erase(pos+1); // trim end
-	}
-	else
-	{
-		s.clear(); // all whitespace
-	}
-	pos = s.find_first_not_of(whitespace);
-	if (pos != std::string::npos)
-	{
-		s.erase(0, pos); // trim start
-	}
-	return s;
 }
 
 int icpconfigLoad(int options, const char *iocName, const char* configDir)
@@ -86,56 +67,19 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 		errlogPrintf("icpconfigLoad failed (ICPCONFIGHOST environment variable not set)\n");
 		return -1;
 	}
-	const char* iocBootDir = macEnvExpand("$(IOC)");
 	if (options == 0)
 	{
 	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
 	}
 	bool verbose = (options & VerboseOutput);
-	if (iocName != NULL)
-	{
-	    iocBootDir = iocName;
-	}
-	if (nullOrZeroLength(iocBootDir))
+	
+	std::string ioc_name = setIOCName(iocName);
+	if (ioc_name.size() == 0)
 	{
 		errlogPrintf("icpconfigLoad failed (IOC environment variable not set and no IOC name specified)\n");
 		return -1;
 	}
-	// The IOC name may be a boot directory, in whihc case strip of the initial ioc prefix
-	std::string iocBootDir_s = iocBootDir;
-	std::transform(iocBootDir_s.begin(), iocBootDir_s.end(), iocBootDir_s.begin(), ::toupper); // uppercase
-	std::replace(iocBootDir_s.begin(), iocBootDir_s.end(), '-', '_'); // hyphen to underscore
-	std::string ioc_name, ioc_group; 
-	if (!iocBootDir_s.compare(0, 3, "IOC")) // are we a boot area (iocYYYY) rather than an ioc name
-	{
-		ioc_name = iocBootDir_s.substr(3);
-	}
-	else
-	{
-		ioc_name = iocBootDir_s;
-	}
-	// strip off -IOC-01 trailer to get IOC group, and remove -IOC- to get ioc name
-	size_t pos = ioc_name.find("_IOC_");
-	if (pos != std::string::npos)
-	{
-	    ioc_group = ioc_name.substr(0, pos); 
-		ioc_name.erase(pos, strlen("_IOC_"));
-	}
-	else if ( (pos = ioc_name.rfind("_")) != std::string::npos )   // old style nameing e.g. DEVICE32_01
-	{
-		if (atoi(ioc_name.substr(pos).c_str()) > 0)
-		{
-			ioc_group = ioc_name.substr(0, pos); 
-		}
-		else
-		{
-			ioc_group = ioc_name; 
-		}
-	}
-	else
-	{
-	    ioc_group = ioc_name; 
-	}
+	std::string ioc_group = getIOCGroup();
 	std::string config_host;
 	if (!(options & IgnoreHostName))
 	{
@@ -238,21 +182,21 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		if (line_buffer[0] == '<')
 		{
 			// need to add directory name of "file"
-			std::string s = trim_string(line_buffer + 1);
+			std::string s = trimString(line_buffer + 1);
 			size_t pos = file.find_last_of("\\/");
 			if (pos != std::string::npos)
 			{
-				loadFile(h, file.substr(0,pos+1)+trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+				loadFile(h, file.substr(0,pos+1)+trimString(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			}
 			else
 			{
-				loadFile(h, trim_string(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+				loadFile(h, trimString(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			}
 			continue;
 		}
 		if (line_buffer[0] == '+')
 		{
-			loadConfig(h, trim_string(line_buffer + 1), config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			loadConfig(h, trimString(line_buffer + 1), config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			continue;
 		}
 		if (macParseDefns( h, line_buffer, &pairs ) == -1)
@@ -265,7 +209,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		macInstallMacros( h, pairs );
 		for(int i=0; pairs[i] != NULL; i += 2)
 		{
-			if (pairs[i+1] == NULL)
+			if (pairs[i+1] == NULL) // NULL macro value
 			{
 				continue;
 			}

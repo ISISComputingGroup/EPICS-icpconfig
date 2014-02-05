@@ -18,6 +18,7 @@ DBD += icpconfig.dbd
 # specify all source files to be compiled and added to the library
 icpconfig_SRCS += icpconfig.cpp
 
+icpconfig_LIBS += utilities
 icpconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #===========================
