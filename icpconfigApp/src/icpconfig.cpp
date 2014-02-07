@@ -52,19 +52,26 @@ static bool nullOrZeroLength(const char* str)
 int icpconfigLoad(int options, const char *iocName, const char* configDir)
 {
 	MAC_HANDLE *h = NULL;
+	std::string ioc_name = setIOCName(iocName);
+	if (ioc_name.size() == 0)
+	{
+		errlogPrintf("icpconfigLoad: failed (IOC environment variable not set and no IOC name specified)\n");
+		return -1;
+	}
+	std::string ioc_group = getIOCGroup();
 	if (configDir == NULL)
 	{
 		configDir = macEnvExpand("$(ICPCONFIGDIR)");
 	}
 	if (nullOrZeroLength(configDir))
 	{
-		errlogPrintf("icpconfigLoad failed (ICPCONFIGDIR environment variable not set and no configDir parameter specified)\n");
+		errlogPrintf("icpconfigLoad: failed (ICPCONFIGDIR environment variable not set and no configDir parameter specified)\n");
 		return -1;
 	}
 	const char* configHost = macEnvExpand("$(ICPCONFIGHOST)");
 	if (nullOrZeroLength(configHost))
 	{
-		errlogPrintf("icpconfigLoad failed (ICPCONFIGHOST environment variable not set)\n");
+		errlogPrintf("icpconfigLoad: failed (ICPCONFIGHOST environment variable not set)\n");
 		return -1;
 	}
 	if (options == 0)
@@ -72,14 +79,6 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
 	}
 	bool verbose = (options & VerboseOutput);
-	
-	std::string ioc_name = setIOCName(iocName);
-	if (ioc_name.size() == 0)
-	{
-		errlogPrintf("icpconfigLoad failed (IOC environment variable not set and no IOC name specified)\n");
-		return -1;
-	}
-	std::string ioc_group = getIOCGroup();
 	std::string config_host;
 	if (!(options & IgnoreHostName))
 	{
@@ -104,7 +103,7 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	const char* configName = macEnvExpand("$(ICPCONFIGNAME)");
 	if (nullOrZeroLength(configName))
 	{
-		errlogPrintf("icpconfigLoad failed (ICPCONFIGNAME environment variable not set)\n");
+		errlogPrintf("icpconfigLoad: failed (ICPCONFIGNAME environment variable not set)\n");
 		macDeleteHandle(h);
 		return -1;
 	}
@@ -123,7 +122,7 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 	static const std::string stars = "**************************************************************************************************************************";
 	if (depth > 20)
 	{
-		errlogPrintf("icpconfigLoad failed (recursion depth)\n");
+		errlogPrintf("icpconfigLoad: failed (recursion depth)\n");
 		return -1;
 	}
 	++depth;
