@@ -40,16 +40,17 @@
 
 enum icpOptions { VerboseOutput = 0x1, IgnoreHostName = 0x2 };
 
-extern "C" int icpconfigLoad(int options, const char *iocName, const char* configDir);
-static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
-static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
+extern "C" int icpconfigLoad(int options, const char *iocName, const char* configBase);
+static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
+static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 
 static bool nullOrZeroLength(const char* str)
 {
     return (str == NULL) || (str[0] == '\0'); 
 }
 
-int icpconfigLoad(int options, const char *iocName, const char* configDir)
+/// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
+int icpconfigLoad(int options, const char *iocName, const char* configBase)
 {
 	MAC_HANDLE *h = NULL;
 	std::string ioc_name = setIOCName(iocName);
@@ -59,13 +60,13 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 		return -1;
 	}
 	std::string ioc_group = getIOCGroup();
-	if (configDir == NULL)
+	if (configBase == NULL)
 	{
-		configDir = macEnvExpand("$(ICPCONFIGDIR)");
+		configBase = macEnvExpand("$(ICPCONFIGBASE)");
 	}
-	if (nullOrZeroLength(configDir))
+	if (nullOrZeroLength(configBase))
 	{
-		errlogPrintf("icpconfigLoad: failed (ICPCONFIGDIR environment variable not set and no configDir parameter specified)\n");
+		errlogPrintf("icpconfigLoad: failed (ICPCONFIGBASE environment variable not set and no configBase parameter specified)\n");
 		return -1;
 	}
 	const char* configHost = macEnvExpand("$(ICPCONFIGHOST)");
@@ -85,21 +86,22 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	    config_host = configHost;
 	}
 	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
-	std::string config_dir = configDir;
+	std::string config_root = configBase;
 	if (config_host.size() > 0)
 	{
-		config_dir += "/";
-		config_dir += config_host;
+		config_root += "/";
+		config_root += config_host;
 	}
-	printf("icpconfigLoad: dir \"%s\"\n", config_dir.c_str());
+	printf("icpconfigLoad: root \"%s\"\n", config_root.c_str());
+    epicsEnvSet("ICPCONFIGROOT", config_root.c_str());
     if ( macCreateHandle(&h, NULL) )
 	{
 		errlogPrintf("icpconfigLoad: failed (macCreateHandle)\n");
 	    return -1;
 	}
 //  macSuppressWarning(h, TRUE);
-	loadConfig(h, "", config_dir, ioc_name, ioc_group, false, false, verbose); // globals
-	loadFile(h, config_dir + "/config.txt", "", config_dir, ioc_name, ioc_group, true, false, verbose);
+	loadConfig(h, "", config_root, ioc_name, ioc_group, false, false, verbose); // globals
+	loadFile(h, config_root + "/config.txt", "", config_root, ioc_name, ioc_group, true, false, verbose);
 	const char* configName = macEnvExpand("$(ICPCONFIGNAME)");
 	if (nullOrZeroLength(configName))
 	{
@@ -107,7 +109,9 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 		macDeleteHandle(h);
 		return -1;
 	}
-	loadConfig(h, configName, config_dir, ioc_name, ioc_group, false, false, verbose);
+    std::string config_dir = config_root + "/" + configName;
+    epicsEnvSet("ICPCONFIGDIR", config_dir.c_str());
+	loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	if (verbose)
 	{
 		macReportMacros(h);
@@ -116,7 +120,7 @@ int icpconfigLoad(int options, const char *iocName, const char* configDir)
 	return 0;
 }	
 
-static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
+static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	static int depth = 0;
 	static const std::string stars = "**************************************************************************************************************************";
@@ -128,7 +132,7 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 	++depth;
 	printf("icpconfigLoad: %s config \"%s\"\n", stars.substr(0,depth).c_str(), config_name.c_str());
 	std::list<std::string> config_file_list;
-	std::string config_base = config_dir + "/" + config_name + "/";
+	std::string config_dir = config_root + "/" + config_name + "/";
 //	DIR* dir = opendir(config_base.c_str());
 //	if (dir == NULL)
 //	{
@@ -136,18 +140,18 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 //		return -1;
 //	}
 //	closedir(dir);
-	config_file_list.push_back(config_base + "globals.txt");
-	config_file_list.push_back(config_base + ioc_group + ".txt");
-	config_file_list.push_back(config_base + ioc_name + ".txt");
+	config_file_list.push_back(config_dir + "globals.txt");
+	config_file_list.push_back(config_dir + ioc_group + ".txt");
+	config_file_list.push_back(config_dir + ioc_name + ".txt");
 	for(std::list<std::string>::const_iterator it = config_file_list.begin(); it != config_file_list.end(); ++it)
 	{
-		loadFile(h, *it, config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+		loadFile(h, *it, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	}
 	--depth;
 	return 0;
 }
 
-static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_dir, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
+static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	static int depth = 0;
 	static const std::string stars = "**************************************************************************************************************************";
@@ -178,6 +182,10 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 		line_buffer[0] = '\0';
 		input_file.getline(line_buffer, sizeof(line_buffer)-1);
 		++line_number;
+		if (line_buffer[0] == '#')
+        {
+            continue;
+        }
 		if (line_buffer[0] == '<')
 		{
 			// need to add directory name of "file"
@@ -185,17 +193,17 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 			size_t pos = file.find_last_of("\\/");
 			if (pos != std::string::npos)
 			{
-				loadFile(h, file.substr(0,pos+1)+trimString(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+				loadFile(h, file.substr(0,pos+1)+trimString(line_buffer + 1), config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			}
 			else
 			{
-				loadFile(h, trimString(line_buffer + 1), config_name, config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+				loadFile(h, trimString(line_buffer + 1), config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			}
 			continue;
 		}
 		if (line_buffer[0] == '+')
 		{
-			loadConfig(h, trimString(line_buffer + 1), config_dir, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			loadConfig(h, trimString(line_buffer + 1), config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 			continue;
 		}
 		if (macParseDefns( h, line_buffer, &pairs ) == -1)
@@ -250,7 +258,7 @@ extern "C" {
 
 static const iocshArg initArg0 = { "options", iocshArgInt };			///< The name of the ioc
 static const iocshArg initArg1 = { "iocName", iocshArgString };			///< The name of the ioc
-static const iocshArg initArg2 = { "configDir", iocshArgString };			///< The name of the configuration file
+static const iocshArg initArg2 = { "configBase", iocshArgString };			///< The name of the configuration file
 
 static const iocshArg * const initArgs[] = { &initArg0, &initArg1, &initArg2 };
 
