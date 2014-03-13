@@ -49,6 +49,31 @@ static bool nullOrZeroLength(const char* str)
     return (str == NULL) || (str[0] == '\0'); 
 }
 
+/// define IFSIM and IFNOTSIM depending on value of SIMULATE
+static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value)
+{
+    if ( !strcmp(name, "SIMULATE") )
+    {
+        const char *ifsim, *ifnotsim;  
+        if ( (atoi(value) != 0) || (value[0] == 'y') || (value[0] == 'Y') )
+        {
+			ifsim = " ";
+			ifnotsim = "#";
+        }
+        else
+        {
+			ifsim = "#";
+			ifnotsim = " ";
+        }
+		macPutValue(h, "IFSIM", ifsim);
+		epicsEnvSet("IFSIM", ifsim);
+		macPutValue(h, "IFNOTSIM", ifnotsim);
+		epicsEnvSet("IFNOTSIM", ifnotsim);
+        printf("icpconfigLoad: $(IFSIM)=\"%s\"\n", ifsim);
+        printf("icpconfigLoad: $(IFNOTSIM)=\"%s\"\n", ifnotsim);
+    }
+}
+
 /// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
 int icpconfigLoad(int options, const char *iocName, const char* configBase)
 {
@@ -226,6 +251,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 				++nval;
 				epicsEnvSet(pairs[i], pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
+                checkSpecialVals(h, pairs[i], pairs[i+1]);
 			}
 			if ( 0 == s.compare(0, prefix_group.size(), prefix_group) )
 			{
@@ -233,6 +259,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 				++nval_group;
 				macPutValue(h, pairs[i] + prefix_group.size(), pairs[i+1]);
 				epicsEnvSet(pairs[i] + prefix_group.size(), pairs[i+1]);
+                checkSpecialVals(h, pairs[i] + prefix_group.size(), pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
 			}
 			if (0 == s.compare(0, prefix_name.size(), prefix_name))
@@ -241,6 +268,7 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 				++nval_ioc;
 				macPutValue(h, pairs[i] + prefix_name.size(), pairs[i+1]);
 				epicsEnvSet(pairs[i] + prefix_name.size(), pairs[i+1]);
+                checkSpecialVals(h, pairs[i] + prefix_name.size(), pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
 			}
 		}
