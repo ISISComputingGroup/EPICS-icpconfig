@@ -54,23 +54,28 @@ static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value)
 {
     if ( !strcmp(name, "SIMULATE") )
     {
-        const char *ifsim, *ifnotsim;  
+        const char *ifsim, *ifnotsim, *simsfx;  
         if ( (atoi(value) != 0) || (value[0] == 'y') || (value[0] == 'Y') )
         {
 			ifsim = " ";
 			ifnotsim = "#";
+            simsfx = "_sim";
         }
         else
         {
 			ifsim = "#";
 			ifnotsim = " ";
+            simsfx = "";
         }
 		macPutValue(h, "IFSIM", ifsim);
 		epicsEnvSet("IFSIM", ifsim);
 		macPutValue(h, "IFNOTSIM", ifnotsim);
 		epicsEnvSet("IFNOTSIM", ifnotsim);
+		macPutValue(h, "SIMSFX", simsfx);
+		epicsEnvSet("SIMSFX", simsfx);
         printf("icpconfigLoad: $(IFSIM)=\"%s\"\n", ifsim);
         printf("icpconfigLoad: $(IFNOTSIM)=\"%s\"\n", ifnotsim);
+        printf("icpconfigLoad: $(SIMSFX)=\"%s\"\n", simsfx);
     }
 }
 
