@@ -79,7 +79,15 @@ static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value)
     }
 }
 
+static void setValue(MAC_HANDLE *h, const char* name, const char* value)
+{
+	macPutValue(h, name, value);
+	epicsEnvSet(name, value);
+    checkSpecialVals(h, name, value);
+}
+
 /// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
+/// also sets SIMULATE, IFSIM, IFNOTSIM
 int icpconfigLoad(int options, const char *iocName, const char* configBase)
 {
 	MAC_HANDLE *h = NULL;
@@ -130,6 +138,7 @@ int icpconfigLoad(int options, const char *iocName, const char* configBase)
 	    return -1;
 	}
 //  macSuppressWarning(h, TRUE);
+    setValue(h, "SIMULATE", "0");
 	loadConfig(h, "", config_root, ioc_name, ioc_group, false, false, verbose); // globals
 	loadFile(h, config_root + "/config.txt", "", config_root, ioc_name, ioc_group, true, false, verbose);
 	const char* configName = macEnvExpand("$(ICPCONFIGNAME)");
@@ -254,26 +263,21 @@ static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& c
 			if (!filter)
 			{
 				++nval;
-				epicsEnvSet(pairs[i], pairs[i+1]);
+                setValue(h, pairs[i], pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
-                checkSpecialVals(h, pairs[i], pairs[i+1]);
 			}
 			if ( 0 == s.compare(0, prefix_group.size(), prefix_group) )
 			{
 				++nval;
 				++nval_group;
-				macPutValue(h, pairs[i] + prefix_group.size(), pairs[i+1]);
-				epicsEnvSet(pairs[i] + prefix_group.size(), pairs[i+1]);
-                checkSpecialVals(h, pairs[i] + prefix_group.size(), pairs[i+1]);
+				setValue(h, pairs[i] + prefix_group.size(), pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
 			}
 			if (0 == s.compare(0, prefix_name.size(), prefix_name))
 			{
 				++nval;
 				++nval_ioc;
-				macPutValue(h, pairs[i] + prefix_name.size(), pairs[i+1]);
-				epicsEnvSet(pairs[i] + prefix_name.size(), pairs[i+1]);
-                checkSpecialVals(h, pairs[i] + prefix_name.size(), pairs[i+1]);
+				setValue(h, pairs[i] + prefix_name.size(), pairs[i+1]);
 				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
 			}
 		}
