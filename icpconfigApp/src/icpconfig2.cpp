@@ -30,9 +30,13 @@
 #include <epicsTimer.h>
 #include <epicsMutex.h>
 #include <iocsh.h>
+#include <initHooks.h>
 #include "envDefs.h"
 #include "macLib.h"
 #include "errlog.h"
+
+
+#include "pugixml.hpp"
 
 #include "utilities.h"
 
@@ -88,7 +92,7 @@ static void setValue(MAC_HANDLE *h, const char* name, const char* value)
 
 /// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
 /// also sets SIMULATE, IFSIM, IFNOTSIM
-static int icpconfigLoad(int options, const char *iocName, const char* configBase)
+static int icpconfig2Load(int options, const char *iocName, const char* configBase)
 {
 	MAC_HANDLE *h = NULL;
 	std::string ioc_name = setIOCName(iocName);
@@ -156,6 +160,13 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 		macReportMacros(h);
 	}
 	macDeleteHandle(h);
+	
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file("test");
+	if (!result)
+	{
+	    std::cerr << "Error " << result.description() << " at offset " << result.offset << std::endl;
+	}
 	
 	return 0;
 }	
@@ -299,21 +310,85 @@ static const iocshArg initArg2 = { "configBase", iocshArgString };			///< The na
 
 static const iocshArg * const initArgs[] = { &initArg0, &initArg1, &initArg2 };
 
-static const iocshFuncDef initFuncDef = {"icpconfigLoad", sizeof(initArgs) / sizeof(iocshArg*), initArgs};
+static const iocshFuncDef initFuncDef = {"icpconfig2Load", sizeof(initArgs) / sizeof(iocshArg*), initArgs};
 
 static void initCallFunc(const iocshArgBuf *args)
 {
-    icpconfigLoad(args[0].ival, args[1].sval, args[2].sval);
+    icpconfig2Load(args[0].ival, args[1].sval, args[2].sval);
 }
 
 extern "C" {
 
-static void icpconfigRegister(void)
+static void icpconfig2Register(void)
 {
     iocshRegister(&initFuncDef, initCallFunc);
 }
 
-epicsExportRegistrar(icpconfigRegister);
+epicsExportRegistrar(icpconfig2Register);
 
 }
 
+/*
+ * INITHOOKS
+ *
+ * called by iocInit at various points during initialization
+ *
+ */
+
+/* If this function (initHooks) is loaded, iocInit calls this function
+ * at certain defined points during IOC initialization */
+static void icpInitHooks(initHookState state)
+{
+	switch (state) {
+	case initHookAtIocBuild :
+		break;
+	case initHookAtBeginning :
+	    break;
+	case initHookAfterCallbackInit :
+	    break;
+	case initHookAfterCaLinkInit :
+	    break;
+	case initHookAfterInitDrvSup :
+	    break;
+	case initHookAfterInitRecSup :
+	    break;
+	case initHookAfterInitDevSup :
+		// Autosave pass 0 happens here
+	    break;
+	case initHookAfterInitDatabase :
+		// Autosave pass 1 happens here
+	    break;
+	case initHookAfterFinishDevSup :
+	    break;
+	case initHookAfterScanInit :
+	    break;
+	case initHookAfterInitialProcess :
+	    break;
+	case initHookAfterCaServerInit :
+	    break;
+	case initHookAfterIocBuilt :
+	    break;
+    case initHookAtIocRun :
+	    break;
+    case initHookAfterDatabaseRunning :
+	    break;
+    case initHookAfterCaServerRunning :
+	    break;
+	case initHookAfterIocRunning :
+	    break;
+	default:
+	    break;
+	}
+	return;
+}
+
+extern "C" {
+
+static void icpInitHooksRegister(void)
+{
+   initHookRegister(icpInitHooks);
+}
+
+epicsExportRegistrar(icpInitHooksRegister);
+
+}

@@ -16,7 +16,7 @@ LIBRARY_IOC += icpconfig
 DBD += icpconfig.dbd
 
 # specify all source files to be compiled and added to the library
-icpconfig_SRCS += icpconfig.cpp
+icpconfig_SRCS += icpconfig.cpp icpconfig2.cpp
 
 icpconfig_LIBS += utilities pugixml
 icpconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
