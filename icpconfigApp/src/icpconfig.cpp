@@ -40,7 +40,7 @@
 
 enum icpOptions { VerboseOutput = 0x1, IgnoreHostName = 0x2 };
 
-extern "C" int icpconfigLoad(int options, const char *iocName, const char* configBase);
+static int icpconfigLoad(int options, const char *iocName, const char* configBase);
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 static int loadFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 
