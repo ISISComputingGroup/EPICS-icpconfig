@@ -34,6 +34,8 @@
 #include "macLib.h"
 #include "errlog.h"
 
+#include "pugixml.hpp"
+
 #include "utilities.h"
 
 #include <epicsExport.h>
@@ -156,6 +158,14 @@ int icpconfigLoad(int options, const char *iocName, const char* configBase)
 		macReportMacros(h);
 	}
 	macDeleteHandle(h);
+	
+	pugi::xml_document doc;
+//	pugi::xml_parse_result result = doc.load_file("test");
+//	if (!result)
+//	{
+//	    std::cerr << "Error " << result.description() << " at offset " << result.offset << std::endl;
+//	}
+	
 	return 0;
 }	
 
