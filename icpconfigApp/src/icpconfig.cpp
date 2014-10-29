@@ -61,7 +61,7 @@ static int readFile(const std::string& filename, std::list<std::string>& lines)
     char buffer[128];
     lines.clear();
 	std::fstream f;
-	f.open(filename);
+	f.open(filename.c_str());
 	if ( !f.good() )
 	{
 		errlogPrintf("icpconfigLoad: file \"%s\" not found\n", filename.c_str());
@@ -79,7 +79,7 @@ static int readFile(const std::string& filename, std::list<std::string>& lines)
 		    done = true;
 		}
 	}
-	return lines.size();
+	return (int)lines.size();
 }
 
 struct PVItem
@@ -365,12 +365,12 @@ static int loadFiles(MAC_HANDLE *h, const std::string& config_name, const std::s
     std::list<std::string> files;
 	std::string files_dir = config_root + config_name + "/files";
 	getFileList(files_dir, files);
-	printf("icpconfigLoad: Found %d files for \"%s\"\n", files.size(), config_name.c_str());
+	printf("icpconfigLoad: Found %d files for \"%s\"\n", (int)files.size(), config_name.c_str());
 	for(std::list<std::string>::iterator it = files.begin(); it != files.end(); ++it)
 	{
 	    std::string item = *it;
         std::transform(item.begin(), item.end(), item.begin(), ::toupper);
-		for(int i=0; i<item.size(); ++i)
+		for(size_t i=0; i<item.size(); ++i)
 		{
 		    if ( !isalnum(item[i]) )
 			{
@@ -400,7 +400,7 @@ static int loadSubconfigs(MAC_HANDLE *h, const std::string& config_name, const s
 	}
 	pugi::xpath_node_set subconfigs = doc.select_nodes("/subconfigs/subconfig");
 	subconfigs.sort(); // forward document order
-	printf("icpconfigLoad: loading %d subconfigs for \"%s\"\n", subconfigs.size(), config_name.c_str());
+	printf("icpconfigLoad: loading %d subconfigs for \"%s\"\n", (int)subconfigs.size(), config_name.c_str());
 	for (pugi::xpath_node_set::const_iterator it = subconfigs.begin(); it != subconfigs.end(); ++it)
 	{
 		std::string subConfig = it->node().attribute("name").value();
@@ -434,7 +434,7 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 
 static int setPVValuesStatic()
 {
-	printf("icpconfigLoad: setPVValuesStatic setting %d pvs (pre iocInit)\n", pv_map.size());
+	printf("icpconfigLoad: setPVValuesStatic setting %d pvs (pre iocInit)\n", (int)pv_map.size());
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
 	    dbpfStatic(it->first.c_str(), it->second.value.c_str());
@@ -444,7 +444,7 @@ static int setPVValuesStatic()
 
 static int setPVValues()
 {
-	printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", pv_map.size());
+	printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", (int)pv_map.size());
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
 	    dbpf(it->first.c_str(), it->second.value.c_str());
