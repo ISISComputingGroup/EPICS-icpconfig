@@ -1,2 +1,0 @@
-# some comment
-TESTICPCONFIG__SUBCONF=1

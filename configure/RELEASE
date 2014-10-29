@@ -33,5 +33,6 @@ EPICS_BASE=C:/development/EPICS/base/3-14-12-2
 
 UTILITIES=$(SUPPORT)/utilities
 PUGIXML=$(SUPPORT)/pugixml
+PCRE=$(SUPPORT)/pcre
 
 include $(TOP)/../../ISIS_CONFIG.$(EPICS_HOST_ARCH)

@@ -1,2 +1,0 @@
-# some comment
-ICPCONFIGNAME=test1

@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<groups>
+	<group name="JAW GAPS">
+		<block name="A1VGap"/>
+		<block name="A1HGap"/>
+		<block name="S1VGap"/>
+		<block name="S1HGap"/>
+		<block name="S2VGap"/>
+		<block name="S2HGap"/>
+	</group>
+	<group name="JAW CENTRES">
+		<block name="S1VCent"/>
+		<block name="A1VCent"/>
+		<block name="S2HCent"/>
+		<block name="S1HCent"/>
+		<block name="A1HCent"/>
+		<block name="S2VCent"/>
+	</group>
+	<group name="BENCH">
+		<block name="Bench_Rot"/>
+		<block name="BSZ"/>
+		<block name="BSY"/>
+		<block name="M4Trans"/>
+		<block name="BenchLift"/>
+		<block name="BenchStatus"/>
+		<block name="Mon4InOut"/>
+	</group>
+	<group name="Sample">
+		<block name="Translation"/>
+		<block name="CoarseHeight"/>
+		<block name="FineHeight"/>
+		<block name="Phi"/>
+		<block name="SampleX"/>
+	</group>
+	<group name="Detector">
+		<block name="DetectorPack1"/>
+		<block name="DetectorPack2"/>
+		<block name="DetectorPack3"/>
+		<block name="DetectorPack4"/>
+	</group>
+	<group name="Optics">
+		<block name="Pol_Trans"/>
+		<block name="Pol_Arc"/>
+		<block name="An_Arc"/>
+		<block name="An_Trans"/>
+		<block name="BlockhouseVacuum"/>
+	</group>
+</groups>

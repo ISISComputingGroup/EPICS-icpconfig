@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<iocs>
+    <defaults>
+        <macros>
+            <macro name="TESTJUNK" value="1" />
+        </macros>
+		<options>
+		    <devsim value="false" />
+		    <recsim value="false" />
+		</options>
+	</defaults>
+	<ioc name="TESTICPCONFIG">
+        <macros>
+            <macro name="GALILADDR2" value="192.168.1.2" />
+        </macros>
+        <pvs>
+            <pv name="NDW847:faa59:HHH" value="10" />
+        </pvs>
+       <pvsets>
+             <pvset name="Motor Limits"  enabled="true" />
+       </pvsets>
+	</ioc>
+</iocs>

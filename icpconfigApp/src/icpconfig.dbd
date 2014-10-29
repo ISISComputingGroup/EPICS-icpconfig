@@ -5,4 +5,4 @@
 #registrar(myRegistrar)
 #variable(myVariable)
 registrar("icpconfigRegister")
-registrar("icpconfig2Register")
+registrar("icpInitHooksRegister")
