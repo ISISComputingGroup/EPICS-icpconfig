@@ -347,7 +347,7 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 		return -1;
 	}
 	std::string ioc_group = getIOCGroup();
-	icpconfigLoadMain("", ioc_name, ioc_group, options, "", configBase);
+	icpconfigLoadMain("", ioc_name, ioc_group, options, "", (configBase != NULL ? configBase : ""));
 	return 0;
 }
 
@@ -407,6 +407,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	printf("icpconfigLoad: Loading IOC PV sets for \"%s\"\n", config_name.c_str());
 	pugi::xpath_query pvsets_query("/iocs/ioc[@name=$iocname]/pvsets/pvset", &vars);
 	pugi::xpath_node_set ioc_pvsets = pvsets_query.evaluate_node_set(doc);
+	std::string files_dir = config_root + config_name + "/files/";
 	for (pugi::xpath_node_set::const_iterator it = ioc_pvsets.begin(); it != ioc_pvsets.end(); ++it)
 	{
 		std::string name = it->node().attribute("name").value();
@@ -417,6 +418,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		    printf("icpconfigLoad: \"%s\" is ENABLED\n", name.c_str());
 			cleanName(name);
             setValue(h, (std::string("IFPVSET")+name).c_str(), " ", config_name.c_str());
+            setValue(h, (std::string("PVSET")+name).c_str(), (files_dir+name+".cfg").c_str(), config_name.c_str());
 		}			
 	}
 	return 0;
