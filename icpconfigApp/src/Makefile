@@ -21,6 +21,11 @@ icpconfig_SRCS += icpconfig.cpp
 icpconfig_LIBS += utilities pugixml
 icpconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
 
+PROD_IOC += icpconfigCheck
+icpconfigCheck_SRCS += icpconfigCheck.cpp
+icpconfigCheck_LIBS += icpconfig utilities pugixml
+icpconfigCheck_LIBS += $(EPICS_BASE_IOC_LIBS)
+
 #===========================
 
 include $(TOP)/configure/RULES

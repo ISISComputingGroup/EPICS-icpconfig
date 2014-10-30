@@ -51,7 +51,7 @@
 
 #include <epicsExport.h>
 
-enum icpOptions { VerboseOutput = 0x1, IgnoreHostName = 0x2 };
+#include "icpconfig.h"
 
 static int icpconfigLoad(int options, const char *iocName, const char* configBase);
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
@@ -243,29 +243,32 @@ static void icpconfigReport()
 	}
  }
 
-/// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
-/// also sets SIMULATE, IFSIM, IFNOTSIM
-static int icpconfigLoad(int options, const char *iocName, const char* configBase)
+static int icpconfigLoadMain(const std::string& config_name, const std::string& ioc_name, const std::string& ioc_group, int options, const std::string& configHost, const std::string& configBase)
 {
 	MAC_HANDLE *h = NULL;
-	std::string ioc_name = setIOCName(iocName);
-	if (ioc_name.size() == 0)
+	const char *config_base, *config_host;
+	if (configBase.size() == 0)
 	{
-		errlogPrintf("icpconfigLoad: failed (IOC environment variable not set and no IOC name specified)\n");
-		return -1;
+		config_base = macEnvExpand("$(ICPCONFIGBASE)");
 	}
-	std::string ioc_group = getIOCGroup();
-	if (configBase == NULL)
+	else
 	{
-		configBase = macEnvExpand("$(ICPCONFIGBASE)");
+		config_base = configBase.c_str();
 	}
-	if (nullOrZeroLength(configBase))
+	if (nullOrZeroLength(config_base))
 	{
 		errlogPrintf("icpconfigLoad: failed (ICPCONFIGBASE environment variable not set and no configBase parameter specified)\n");
 		return -1;
 	}
-	const char* configHost = macEnvExpand("$(ICPCONFIGHOST)");
-	if (nullOrZeroLength(configHost))
+	if (configHost.size() == 0)
+	{
+		config_host = macEnvExpand("$(ICPCONFIGHOST)");
+	}
+	else
+	{
+		config_host = configHost.c_str();
+	}
+	if (nullOrZeroLength(config_host))
 	{
 		errlogPrintf("icpconfigLoad: failed (ICPCONFIGHOST environment variable not set)\n");
 		return -1;
@@ -274,15 +277,15 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 	{
 	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
 	}
-	bool verbose = (options & VerboseOutput);
-	std::string config_host;
-	if (!(options & IgnoreHostName))
+	if (options & IgnoreHostName)
 	{
-	    config_host = configHost;
+	    config_host = "";
 	}
-	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host.c_str());
-	std::string config_root = configBase;
-	if (config_host.size() > 0)
+	bool verbose = (options & VerboseOutput);
+	std::string configName;
+	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host);
+	std::string config_root = config_base;
+	if (strlen(config_host) > 0)
 	{
 		config_root += "/";
 		config_root += config_host;
@@ -297,7 +300,14 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 //  macSuppressWarning(h, TRUE);
     setValue(h, "ICPCONFIGROOT", config_root.c_str(), "");
     setValue(h, "SIMULATE", "0", "");
-	std::string configName = readFile(config_root + "/last_config.txt");
+	if (config_name.size() == 0)
+	{
+	    configName = readFile(config_root + "/last_config.txt");
+	}
+	else
+	{
+	    configName = config_name;
+	}
     std::string config_dir = config_root + configName;
     setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "");
 	if (configName.size() == 0)
@@ -325,6 +335,27 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 	}
 	return 0;
 }	
+
+/// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
+/// also sets SIMULATE, IFSIM, IFNOTSIM
+static int icpconfigLoad(int options, const char *iocName, const char* configBase)
+{
+	std::string ioc_name = setIOCName(iocName);
+	if (ioc_name.size() == 0)
+	{
+		errlogPrintf("icpconfigLoad: failed (IOC environment variable not set and no IOC name specified)\n");
+		return -1;
+	}
+	std::string ioc_group = getIOCGroup();
+	icpconfigLoadMain("", ioc_name, ioc_group, options, "", configBase);
+	return 0;
+}
+
+epicsShareExtern int icpconfigCheck(const std::string& configName, const std::string& ioc_name, const std::string& ioc_group, const std::string& configHost, const std::string& configBase, int options)
+{
+	icpconfigLoadMain(configName, ioc_name, ioc_group, options, configHost, configBase);
+    return 0;
+}
 
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
@@ -537,21 +568,21 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 			{
 				++nval;
                 setValue(h, pairs[i], pairs[i+1], file.c_str());
-				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
+//				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
 			}
 			if ( 0 == s.compare(0, prefix_group.size(), prefix_group) )
 			{
 				++nval;
 				++nval_group;
 				setValue(h, pairs[i] + prefix_group.size(), pairs[i+1], file.c_str());
-				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
+//				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
 			}
 			if (0 == s.compare(0, prefix_name.size(), prefix_name))
 			{
 				++nval;
 				++nval_ioc;
 				setValue(h, pairs[i] + prefix_name.size(), pairs[i+1], file.c_str());
-				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
+//				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
 			}
 		}
 		free(pairs);
