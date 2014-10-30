@@ -1,0 +1,2 @@
+# old style macro file
+OLDMACRO=4

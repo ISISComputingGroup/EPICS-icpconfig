@@ -57,6 +57,7 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 static void setValue(MAC_HANDLE *h, const char* name, const char* value, const char* source);
+static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 
 static int readFile(const std::string& filename, std::list<std::string>& lines)
 {
@@ -115,6 +116,7 @@ struct MacroItem
 static std::map<std::string,MacroItem> macro_map;
 
 std::list<std::string> load_list;
+std::list<std::string> old_load_list;
 
 static std::string readFile(const std::string& filename)
 {
@@ -195,6 +197,18 @@ static void setValue(MAC_HANDLE *h, const char* name, const char* value, const c
     checkSpecialVals(h, name, value, source);
 }
 
+static void cleanName(std::string& item)
+{
+    std::transform(item.begin(), item.end(), item.begin(), ::toupper);
+	for(size_t i=0; i<item.size(); ++i)
+	{
+	    if ( !isalnum(item[i]) )
+		{
+		    item[i] = '_';
+		}
+	}
+}
+
 static void icpconfigReport()
 {
 	printf("icpconfigReport: *** Macro report ***\n");
@@ -213,12 +227,20 @@ static void icpconfigReport()
 		printf("icpconfigReport: \"%s\" is ENABLED (%s)\n", it->first.c_str(), it->second.source.c_str());
 	}
 	printf("icpconfigReport: *** Loaded Configurations and Components ***\n");
-	printf("icpconfigReport: ");
+	printf("icpconfigReport:");
     for(std::list<std::string>::const_iterator it = load_list.begin(); it != load_list.end(); ++it)
 	{
 	    printf(" \"%s\"", it->c_str()); 
     }
 	printf("\n");
+	if (old_load_list.size() > 0)
+	{
+	    printf("icpconfigReport: *** Loaded Macro Files ***\n");
+        for(std::list<std::string>::const_iterator it = old_load_list.begin(); it != old_load_list.end(); ++it)
+	    {
+	        printf("icpconfigReport: \"%s\"\n", it->c_str()); 
+        }
+	}
  }
 
 /// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
@@ -274,17 +296,23 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 	}
 //  macSuppressWarning(h, TRUE);
     setValue(h, "ICPCONFIGROOT", config_root.c_str(), "");
+    setValue(h, "SIMULATE", "0", "");
 	std::string configName = readFile(config_root + "/last_config.txt");
+    std::string config_dir = config_root + configName;
+    setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "");
 	if (configName.size() == 0)
 	{
 		errlogPrintf("icpconfigLoad: no current config - $(ICPCONFIGROOT)/last_config.txt not found\n");
-	    return -1;
 	}
-	printf("icpconfigLoad: last configuration was \"%s\"\n", configName.c_str());
-    setValue(h, "SIMULATE", "0", "");
-    std::string config_dir = config_root + configName;
-    setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "");
-	loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	else
+	{
+	    printf("icpconfigLoad: last configuration was \"%s\"\n", configName.c_str());
+	    loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	}
+// old style files
+    loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 //	if (verbose)
 //	{
 //		printf("*** Macro report ***\n");
@@ -297,7 +325,6 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 	}
 	return 0;
 }	
-
 
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
@@ -357,6 +384,8 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		{
             pvset_map[name] = PVSetItem(enabled, config_name);
 		    printf("icpconfigLoad: PVSET \"%s\" is ENABLED\n", name.c_str());
+			cleanName(name);
+            setValue(h, (std::string("IFPVSET")+name).c_str(), " ", config_name.c_str());
 		}			
 	}
 	return 0;
@@ -371,14 +400,7 @@ static int loadFiles(MAC_HANDLE *h, const std::string& config_name, const std::s
 	for(std::list<std::string>::iterator it = files.begin(); it != files.end(); ++it)
 	{
 	    std::string item = *it;
-        std::transform(item.begin(), item.end(), item.begin(), ::toupper);
-		for(size_t i=0; i<item.size(); ++i)
-		{
-		    if ( !isalnum(item[i]) )
-			{
-			    item[i] = '_';
-			}
-		}
+		cleanName(item);
         setValue(h, item.c_str(), (files_dir + "/" + *it).c_str(), config_name.c_str());
         setValue(h, (std::string("IF")+item).c_str(), " ", config_name.c_str());
 	}
@@ -454,6 +476,90 @@ static int setPVValues()
 	return 0;
 }
 
+static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
+{
+	char line_buffer[512];
+	char** pairs = NULL;
+	std::ifstream input_file;
+	input_file.open(file.c_str(), std::ios::in);
+	if ( !input_file.good() )
+	{
+		if (warn_if_not_found)
+		{
+			errlogPrintf("icpconfigLoad: failed (cannot load file \"%s\")\n", file.c_str());
+		}
+		return -1;
+	}
+	old_load_list.push_back(file);
+	std::string prefix_name = ioc_name + "__";
+	std::string prefix_group = ioc_group + "__";
+	printf("icpconfigLoad: loading macro file \"%s\"\n", file.c_str());
+	unsigned nval = 0, nval_ioc = 0, nval_group = 0, line_number = 0;
+	while(input_file.good())
+	{
+		line_buffer[0] = '\0';
+		input_file.getline(line_buffer, sizeof(line_buffer)-1);
+		++line_number;
+		if (line_buffer[0] == '#')
+        {
+            continue;
+        }
+		if (line_buffer[0] == '<')
+		{
+			// need to add directory name of "file"
+			std::string s = trimString(line_buffer + 1);
+			size_t pos = file.find_last_of("\\/");
+			if (pos != std::string::npos)
+			{
+				loadMacroFile(h, file.substr(0,pos+1)+trimString(line_buffer + 1), config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			}
+			else
+			{
+				loadMacroFile(h, trimString(line_buffer + 1), config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+			}
+			continue;
+		}
+		if (macParseDefns( h, line_buffer, &pairs ) == -1)
+		{
+			errlogPrintf("icpconfigLoad: failed (macParseDefns) for \"%s\" from \"%s\" line %d\n", line_buffer, file.c_str(), line_number);
+			input_file.close();
+			return -1;
+		}
+		macInstallMacros( h, pairs );
+		for(int i=0; pairs[i] != NULL; i += 2)
+		{
+			if (pairs[i+1] == NULL) // NULL macro value
+			{
+				continue;
+			}
+			std::string s(pairs[i]);
+			if (!filter)
+			{
+				++nval;
+                setValue(h, pairs[i], pairs[i+1], file.c_str());
+				printf("icpconfigLoad: $(%s)=\"%s\"\n", pairs[i], pairs[i+1]);
+			}
+			if ( 0 == s.compare(0, prefix_group.size(), prefix_group) )
+			{
+				++nval;
+				++nval_group;
+				setValue(h, pairs[i] + prefix_group.size(), pairs[i+1], file.c_str());
+				printf("icpconfigLoad: $(%s)=\"%s\" (group \"%s\")\n", pairs[i] + prefix_group.size(), pairs[i+1], prefix_group.c_str());
+			}
+			if (0 == s.compare(0, prefix_name.size(), prefix_name))
+			{
+				++nval;
+				++nval_ioc;
+				setValue(h, pairs[i] + prefix_name.size(), pairs[i+1], file.c_str());
+				printf("icpconfigLoad: $(%s)=\"%s\" (ioc \"%s\")\n", pairs[i] + prefix_name.size(), pairs[i+1], prefix_name.c_str());
+			}
+		}
+		free(pairs);
+	}		
+	input_file.close();
+	printf("icpconfigLoad: loaded %u macros from macro file \"%s\" (%d ioc, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
+    return 0;
+}
 
 // EPICS iocsh shell commands 
 
