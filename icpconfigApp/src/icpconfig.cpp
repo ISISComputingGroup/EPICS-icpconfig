@@ -401,7 +401,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		std::string name = it->node().attribute("name").value();
 		std::string value = it->node().attribute("value").value();
         pv_map[name] = PVItem(value, config_name);
-		printf("icpconfigLoad: PV %s=\"%s\"\n", name.c_str(), value.c_str());
+		printf("icpconfigLoad: %s=\"%s\"\n", name.c_str(), value.c_str());
 	}
 	// ioc pv sets
 	printf("icpconfigLoad: Loading IOC PV sets for \"%s\"\n", config_name.c_str());
@@ -414,7 +414,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		if (enabled)
 		{
             pvset_map[name] = PVSetItem(enabled, config_name);
-		    printf("icpconfigLoad: PVSET \"%s\" is ENABLED\n", name.c_str());
+		    printf("icpconfigLoad: \"%s\" is ENABLED\n", name.c_str());
 			cleanName(name);
             setValue(h, (std::string("IFPVSET")+name).c_str(), " ", config_name.c_str());
 		}			
@@ -438,14 +438,14 @@ static int loadFiles(MAC_HANDLE *h, const std::string& config_name, const std::s
 	return 0;
 }
 
-static int loadSubconfigs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
+static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	pugi::xml_document doc;
-	std::string xfile = config_root + config_name + "/subconfigs.xml";
+	std::string xfile = config_root + config_name + "/components.xml";
 	if (access(xfile.c_str(), 0) != 0)
 	{
-	    printf("icpconfigLoad: no subconfigs for \"%s\"\n", config_name.c_str());
-		return 0; // no subconfigs
+	    printf("icpconfigLoad: no components for \"%s\"\n", config_name.c_str());
+		return 0; // no components
 	}
 	pugi::xml_parse_result result = doc.load_file(xfile.c_str());
 	if (!result)
@@ -453,13 +453,13 @@ static int loadSubconfigs(MAC_HANDLE *h, const std::string& config_name, const s
 	    std::cerr << "icpconfigLoad: Error in \"" << xfile << "\" " << result.description() << " at offset " << result.offset << std::endl;
 		return -1;
 	}
-	pugi::xpath_node_set subconfigs = doc.select_nodes("/subconfigs/subconfig");
-	subconfigs.sort(); // forward document order
-	printf("icpconfigLoad: loading %d subconfigs for \"%s\"\n", (int)subconfigs.size(), config_name.c_str());
-	for (pugi::xpath_node_set::const_iterator it = subconfigs.begin(); it != subconfigs.end(); ++it)
+	pugi::xpath_node_set components = doc.select_nodes("/components/component");
+	components.sort(); // forward document order
+	printf("icpconfigLoad: loading %d components for \"%s\"\n", (int)components.size(), config_name.c_str());
+	for (pugi::xpath_node_set::const_iterator it = components.begin(); it != components.end(); ++it)
 	{
-		std::string subConfig = it->node().attribute("name").value();
-		loadComponent(h, subConfig, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+		std::string component = it->node().attribute("name").value();
+		loadComponent(h, component, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	}
 	return 0;
 }
@@ -475,7 +475,7 @@ static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const st
 	++depth;
 	printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
 	load_list.push_back(config_name);
-	loadSubconfigs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+	loadComponents(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
     loadIOCs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
     loadFiles(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	--depth;
