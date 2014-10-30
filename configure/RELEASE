@@ -31,6 +31,7 @@ EPICS_BASE=C:/development/EPICS/base/3-14-12-2
 # other than EPICS_BASE:
 #RULES=/path/to/epics/support/module/rules/x-y
 
+LIBJSON=$(SUPPORT)/libjson
 UTILITIES=$(SUPPORT)/utilities
 PUGIXML=$(SUPPORT)/pugixml
 PCRE=$(SUPPORT)/pcre
