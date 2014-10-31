@@ -323,6 +323,9 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
     loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+    loadMacroFile(h, config_root + "/../globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	loadMacroFile(h, config_root + "/../" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	loadMacroFile(h, config_root + "/../" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 //	if (verbose)
 //	{
 //		printf("*** Macro report ***\n");
