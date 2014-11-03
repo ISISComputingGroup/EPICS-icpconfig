@@ -87,30 +87,33 @@ static int readFile(const std::string& filename, std::list<std::string>& lines)
 
 struct PVItem
 {
+    bool defined;
 	std::string value;
 	std::string source;
-	PVItem() : value(""), source("unknown") { }
-	PVItem(const std::string& value_, const std::string& source_) : value(value_), source(source_) { }
+	PVItem() : defined(false), value(""), source("unknown") { }
+	PVItem(const std::string& value_, const std::string& source_) : defined(true), value(value_), source(source_) { }
 };
 
 static std::map<std::string,PVItem> pv_map;
 
 struct PVSetItem
 {
+    bool defined;
     bool enabled;
 	std::string source;
-	PVSetItem() : enabled(false), source("unknown") { }
-	PVSetItem(bool enabled_, const std::string& source_) : enabled(enabled_), source(source_) { }
+	PVSetItem() : defined(false), enabled(false), source("unknown") { }
+	PVSetItem(bool enabled_, const std::string& source_) : defined(true), enabled(enabled_), source(source_) { }
 };
 
 static std::map<std::string,PVSetItem> pvset_map;
 
 struct MacroItem
 {
+    bool defined;
 	std::string value;
 	std::string source;
-	MacroItem() : value(""), source("unknown") { }
-	MacroItem(const std::string& value_, const std::string& source_) : value(value_), source(source_) { }
+	MacroItem() : defined(false), value(""), source("unknown") { }
+	MacroItem(const std::string& value_, const std::string& source_) : defined(true), value(value_), source(source_) { }
 };
 
 static std::map<std::string,MacroItem> macro_map;
@@ -190,8 +193,16 @@ static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value,
 
 static void setValue(MAC_HANDLE *h, const char* name, const char* value, const char* source)
 {
-	printf("icpconfigLoad: $(%s)=\"%s\"\n", name, value);
-	macro_map[name] = MacroItem(value, source);
+    MacroItem& item = macro_map[name];
+    if (item.defined)
+    {
+	    printf("icpconfigLoad: $(%s)=\"%s\" [previous \"%s\" (%s)]\n", name, value, item.value.c_str(), item.source.c_str());
+    }	
+	else
+	{
+	    printf("icpconfigLoad: $(%s)=\"%s\"\n", name, value);
+	}
+	item = MacroItem(value, source);
 	macPutValue(h, name, value);
 	epicsEnvSet(name, value);
     checkSpecialVals(h, name, value, source);
@@ -235,7 +246,7 @@ static void icpconfigReport()
 	printf("\n");
 	if (old_load_list.size() > 0)
 	{
-	    printf("icpconfigReport: *** Loaded Macro Files ***\n");
+	    printf("icpconfigReport: *** Loaded Old Macro Files ***\n");
         for(std::list<std::string>::const_iterator it = old_load_list.begin(); it != old_load_list.end(); ++it)
 	    {
 	        printf("icpconfigReport: \"%s\"\n", it->c_str()); 
@@ -403,8 +414,17 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	{
 		std::string name = it->node().attribute("name").value();
 		std::string value = it->node().attribute("value").value();
-        pv_map[name] = PVItem(value, config_name);
-		printf("icpconfigLoad: %s=\"%s\"\n", name.c_str(), value.c_str());
+		PVItem& item = pv_map[name]; 
+		if (item.defined)
+		{
+		    printf("icpconfigLoad: %s=\"%s\" [previous \"%s\" (%s)]\n", 
+							name.c_str(), value.c_str(), item.value.c_str(), item.source.c_str());
+		}
+		else
+		{
+			printf("icpconfigLoad: %s=\"%s\"\n", name.c_str(), value.c_str());
+		}
+        item = PVItem(value, config_name);
 	}
 	// ioc pv sets
 	printf("icpconfigLoad: Loading IOC PV sets for \"%s\"\n", config_name.c_str());
@@ -415,14 +435,28 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	{
 		std::string name = it->node().attribute("name").value();
 		bool enabled = it->node().attribute("enabled").as_bool();
+		PVSetItem& item = pvset_map[name];
+		if (item.defined)
+		{
+		    printf("icpconfigLoad: \"%s\" is %s [previous %s (%s)]\n", 
+					name.c_str(), (enabled ? "ENABLED" : "DISABLED"), (item.enabled ? "ENABLED" : "DISABLED"), config_name.c_str());
+		}
+		else
+		{
+		    printf("icpconfigLoad: \"%s\" is %s\n", name.c_str(), (enabled ? "ENABLED" : "DISABLED"));
+		}
+        item = PVSetItem(enabled, config_name);
+		cleanName(name);
 		if (enabled)
 		{
-            pvset_map[name] = PVSetItem(enabled, config_name);
-		    printf("icpconfigLoad: \"%s\" is ENABLED\n", name.c_str());
-			cleanName(name);
             setValue(h, (std::string("IFPVSET")+name).c_str(), " ", config_name.c_str());
             setValue(h, (std::string("PVSET")+name).c_str(), (files_dir+name+".cfg").c_str(), config_name.c_str());
-		}			
+		}
+		else
+		{
+            setValue(h, (std::string("IFPVSET")+name).c_str(), "#", config_name.c_str());
+            setValue(h, (std::string("PVSET")+name).c_str(), "", config_name.c_str());
+		}
 	}
 	return 0;
 }
@@ -529,7 +563,7 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 	old_load_list.push_back(file);
 	std::string prefix_name = ioc_name + "__";
 	std::string prefix_group = ioc_group + "__";
-	printf("icpconfigLoad: loading macro file \"%s\"\n", file.c_str());
+	printf("icpconfigLoad: loading old macro file \"%s\"\n", file.c_str());
 	unsigned nval = 0, nval_ioc = 0, nval_group = 0, line_number = 0;
 	while(input_file.good())
 	{
@@ -593,7 +627,7 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 		free(pairs);
 	}		
 	input_file.close();
-	printf("icpconfigLoad: loaded %u macros from macro file \"%s\" (%d ioc, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
+	printf("icpconfigLoad: loaded %u macros from old macro file \"%s\" (%d ioc, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
     return 0;
 }
 
