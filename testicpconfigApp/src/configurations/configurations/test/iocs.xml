@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
-<iocs>
+<iocs xmlns="http://epics.isis.rl.ac.uk/schema/IOCS/1.0" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://epics.isis.rl.ac.uk/schema/IOCS/1.0 iocs.xsd"
+    >
     <defaults>
         <macros>
             <macro name="JUNK" value="1" />
