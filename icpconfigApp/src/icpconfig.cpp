@@ -494,7 +494,7 @@ static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const s
 	}
 	pugi::xpath_node_set components = doc.select_nodes("/components/component");
 	components.sort(); // forward document order
-	printf("icpconfigLoad: loading %d components for \"%s\"\n", (int)components.size(), config_name.c_str());
+	printf("icpconfigLoad: loading %d component(s) for \"%s\"\n", (int)components.size(), config_name.c_str());
 	for (pugi::xpath_node_set::const_iterator it = components.begin(); it != components.end(); ++it)
 	{
 		std::string component = it->node().attribute("name").value();
@@ -505,6 +505,15 @@ static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const s
 
 static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
+	printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
+	load_list.push_back(config_name);
+    loadIOCs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+    loadFiles(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+	return 0;
+}	
+
+static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
+{
     static int depth = 0;
 	if (depth > 20)
 	{
@@ -512,18 +521,13 @@ static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const st
 		return -1;
 	}
 	++depth;
-	printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
+	printf("icpconfigLoad: configuration \"%s\"\n", config_name.c_str());
 	load_list.push_back(config_name);
 	loadComponents(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
     loadIOCs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
     loadFiles(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	--depth;
 	return 0;
-}	
-
-static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
-{
-    return loadComponent(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 }
 
 static int setPVValuesStatic()
