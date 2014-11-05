@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <iocs xmlns="http://epics.isis.rl.ac.uk/schema/IOCS/1.0" 
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://epics.isis.rl.ac.uk/schema/IOCS/1.0 iocs.xsd"
+    xsi:schemaLocation="http://epics.isis.rl.ac.uk/schema/IOCS/1.0 http://svn.isis.rl.ac.uk/EPICS/trunk/schema/configurations/iocs.xsd"
     >
     <defaults>
         <macros>
