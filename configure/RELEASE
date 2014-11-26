@@ -35,5 +35,7 @@ LIBJSON=$(SUPPORT)/libjson
 UTILITIES=$(SUPPORT)/utilities
 PUGIXML=$(SUPPORT)/pugixml
 PCRE=$(SUPPORT)/pcre
+MYSQL=$(SUPPORT)/MySQL
+BOOST=$(EPICS_ROOT)/libraries/boost
 
 include $(TOP)/../../ISIS_CONFIG.$(EPICS_HOST_ARCH)
