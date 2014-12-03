@@ -288,36 +288,26 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	{
 	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
 	}
-	if (options & IgnoreHostName)
-	{
-	    config_host = "";
-	}
 	bool verbose = (options & VerboseOutput);
 	std::string configName;
 	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host);
-	std::string config_root = config_base;
-	if (strlen(config_host) > 0)
-	{
-		config_root += "/";
-		config_root += config_host;
-	}
-	config_root += "/configurations";
-	printf("icpconfigLoad: config root (ICPCONFIGROOT) set to \"%s\"\n", config_root.c_str());
+	std::string config_root = macEnvExpand("$(ICPCONFIGROOT)");
+	printf("icpconfigLoad: config base (ICPCONFIGBASE) is \"%s\"\n", config_base);
+	printf("icpconfigLoad: config root (ICPCONFIGROOT) is \"%s\"\n", config_root.c_str());
     if ( macCreateHandle(&h, NULL) )
 	{
 		errlogPrintf("icpconfigLoad: failed (macCreateHandle)\n");
 	    return -1;
 	}
 //  macSuppressWarning(h, TRUE);
-    setValue(h, "ICPCONFIGROOT", config_root.c_str(), "");
     setValue(h, "SIMULATE", "0", "");
 	if (config_name.size() == 0)
 	{
-	    configName = readFile(config_root + "/last_config.txt");
+	    configName = readFile(config_root + "/last_config.txt"); // name in file starts with '/'
 	}
 	else
 	{
-	    configName = config_name;
+	    configName = std::string(config_name[0] == '/' ? "" : "/") + config_name;  // make sure name starts with '/'
 	}
     std::string config_dir = config_root + configName;
     setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "");
@@ -350,7 +340,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	return 0;
 }	
 
-/// defines ICPCONFIGROOT and ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST and ICPCONFIGOPTIONS
+/// defines ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST, ICPCONFIGROOT and ICPCONFIGOPTIONS
 /// also sets SIMULATE, IFSIM, IFNOTSIM
 static int icpconfigLoad(int options, const char *iocName, const char* configBase)
 {
