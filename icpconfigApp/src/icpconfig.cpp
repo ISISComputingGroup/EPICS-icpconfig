@@ -301,6 +301,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	}
 //  macSuppressWarning(h, TRUE);
     setValue(h, "SIMULATE", "0", "");
+    setValue(h, "DISABLE", "0", "");
 	if (config_name.size() == 0)
 	{
 	    configName = readFile(config_root + "/last_config.txt"); // name in file starts with '/'
