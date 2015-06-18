@@ -53,6 +53,8 @@
 
 #include "icpconfig.h"
 
+static bool simulate = false, devsim = false, recsim = false; 
+
 static int icpconfigLoad(int options, const char *iocName, const char* configBase);
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
 static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
@@ -170,24 +172,77 @@ static bool nullOrZeroLength(const char* str)
 /// define IFSIM and IFNOTSIM depending on value of SIMULATE
 static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value, const char* source)
 {
+    const char *ifsim, *ifnotsim, *simsfx;  
+    bool is_yes = ( (atoi(value) != 0) || (value[0] == 'y') || (value[0] == 'Y') );
     if ( !strcmp(name, "SIMULATE") )
     {
-        const char *ifsim, *ifnotsim, *simsfx;  
-        if ( (atoi(value) != 0) || (value[0] == 'y') || (value[0] == 'Y') )
+        if (is_yes)
         {
 			ifsim = " ";
 			ifnotsim = "#";
-            simsfx = "_sim";
+//            simsfx = "_sim";
+            simsfx = "";
+            simulate = true;
         }
         else
         {
 			ifsim = "#";
 			ifnotsim = " ";
             simsfx = "";
+            simulate = false;
         }
 		setValue(h, "IFSIM", ifsim, source);
 		setValue(h, "IFNOTSIM", ifnotsim, source);
 		setValue(h, "SIMSFX", simsfx, source);
+    }
+    if ( !strcmp(name, "RECSIM") )
+    {
+        if (is_yes)
+        {
+			ifsim = " ";
+			ifnotsim = "#";
+            recsim = true;
+        }
+        else
+        {
+			ifsim = "#";
+			ifnotsim = " ";
+            recsim = false;
+        }
+		setValue(h, "IFRECSIM", ifsim, source);
+		setValue(h, "IFNOTRECSIM", ifnotsim, source);
+    }
+    if ( !strcmp(name, "DEVSIM") )
+    {
+        if (is_yes)
+        {
+			ifsim = " ";
+			ifnotsim = "#";
+            devsim = true;
+        }
+        else
+        {
+			ifsim = "#";
+			ifnotsim = " ";
+            devsim = false;
+        }
+		setValue(h, "IFDEVSIM", ifsim, source);
+		setValue(h, "IFNOTDEVSIM", ifnotsim, source);
+    }
+    if ( !strcmp(name, "DISABLE") )
+    {
+        if (is_yes)
+        {
+			ifsim = " ";
+			ifnotsim = "#";
+        }
+        else
+        {
+			ifsim = "#";
+			ifnotsim = " ";
+        }
+		setValue(h, "IFDISABLE", ifsim, source);
+		setValue(h, "IFNOTDISABLE", ifnotsim, source);
     }
 }
 
@@ -300,8 +355,10 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	    return -1;
 	}
 //  macSuppressWarning(h, TRUE);
-    setValue(h, "SIMULATE", "0", "");
-    setValue(h, "DISABLE", "0", "");
+    setValue(h, "SIMULATE", "0", "{initial default}");
+    setValue(h, "DISABLE", "0", "{initial default}");
+    setValue(h, "DEVSIM", "0", "{initial default}");
+    setValue(h, "RECSIM", "0", "{initial default}");
 	if (config_name.size() == 0)
 	{
 	    configName = readFile(config_root + "/last_config.txt"); // name in file starts with '/'
@@ -311,7 +368,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	    configName = std::string(config_name[0] == '/' ? "" : "/") + config_name;  // make sure name starts with '/'
 	}
     std::string config_dir = config_root + configName;
-    setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "");
+    setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "{initial default}");
 	if (configName.size() == 0)
 	{
 		errlogPrintf("icpconfigLoad: no current config - $(ICPCONFIGROOT)/last_config.txt not found\n");
@@ -328,6 +385,12 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
     loadMacroFile(h, config_root + "/../globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/../" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/../" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+
+    //
+    if (devsim || recsim)
+    {
+        setValue(h, "SIMULATE", "1", "{icpconfig final adjustment}");
+    }
 //	if (verbose)
 //	{
 //		printf("*** Macro report ***\n");
@@ -387,6 +450,46 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		std::string value = it->node().attribute("value").value();
         setValue(h, name.c_str(), value.c_str(), config_name.c_str());
 	}
+    // ioc sim level
+	printf("icpconfigLoad: Loading IOC sim level \"%s\"\n", config_name.c_str());
+	pugi::xpath_query ioc_query("/iocs/ioc[@name=$iocname]", &vars);
+	pugi::xpath_node_set ioc_node = ioc_query.evaluate_node_set(doc);
+    std::string sim_level;
+    bool disable = false;
+    if (ioc_node.size() > 0)
+    {
+	    sim_level = ioc_node[0].node().attribute("simlevel").value();
+        disable = ioc_node[0].node().attribute("disable").as_bool();
+    }
+    if (sim_level == "none")
+    {
+        setValue(h, "DEVSIM", "0", config_name.c_str());
+        setValue(h, "RECSIM", "0", config_name.c_str());
+    }
+    else if (sim_level == "recsim")
+    {
+        setValue(h, "DEVSIM", "0", config_name.c_str());
+        setValue(h, "RECSIM", "1", config_name.c_str());
+    }
+    else if (sim_level == "devsim")
+    {
+        setValue(h, "DEVSIM", "1", config_name.c_str());
+        setValue(h, "RECSIM", "0", config_name.c_str());
+    }
+    else
+    {
+		errlogPrintf("icpconfigLoad: unknown simlevel \"%s\"\n", sim_level.c_str());
+        setValue(h, "DEVSIM", "0", config_name.c_str());
+        setValue(h, "RECSIM", "0", config_name.c_str());
+    }    
+    if (disable)
+    {
+        setValue(h, "DISABLE", "1", config_name.c_str());
+    }
+    else
+    {
+        setValue(h, "DISABLE", "0", config_name.c_str());
+    }
 	// ioc macros
 	printf("icpconfigLoad: Loading IOC macros for \"%s\"\n", config_name.c_str());
 	pugi::xpath_query macros_query("/iocs/ioc[@name=$iocname]/macros/macro", &vars);
