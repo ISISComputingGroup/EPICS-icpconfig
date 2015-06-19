@@ -478,7 +478,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
     }
     else
     {
-		errlogPrintf("icpconfigLoad: unknown simlevel \"%s\"\n", sim_level.c_str());
+		errlogPrintf("icpconfigLoad: unknown or unspecified simlevel \"%s\" - assuming not simulating\n", sim_level.c_str());
         setValue(h, "DEVSIM", "0", config_name.c_str());
         setValue(h, "RECSIM", "0", config_name.c_str());
     }    
