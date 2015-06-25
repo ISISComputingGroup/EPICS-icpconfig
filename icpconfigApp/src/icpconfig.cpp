@@ -693,6 +693,22 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 			input_file.close();
 			return -1;
 		}
+        // quotes are preserved by macParseDefns() for name="value" so we need to remove them
+		for(int i=0; pairs[i] != NULL; i += 2)
+        {
+            char* strval = pairs[i+1]; 
+			if (strval == NULL) // NULL macro value
+			{
+				continue;
+			}
+			std::string s(strval);
+            if ( s[0] == '"' && s[s.size()-1] == '"' )
+            {
+                s.erase(s.size()-1, 1);
+                s.erase(0, 1);
+                strcpy(strval, s.c_str());
+            }
+        }
 		macInstallMacros( h, pairs );
 		for(int i=0; pairs[i] != NULL; i += 2)
 		{
