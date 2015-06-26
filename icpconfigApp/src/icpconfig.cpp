@@ -629,7 +629,8 @@ static int setPVValuesStatic()
 	printf("icpconfigLoad: setPVValuesStatic setting %d pvs (pre iocInit)\n", (int)pv_map.size());
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
-	    dbpfStatic(it->first.c_str(), it->second.value.c_str());
+	    printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
+ 	    dbpfStatic(it->first.c_str(), it->second.value.c_str());
 	}
 	return 0;
 }
@@ -639,6 +640,7 @@ static int setPVValues()
 	printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", (int)pv_map.size());
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
+	    printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
 	    dbpf(it->first.c_str(), it->second.value.c_str());
 	}
 	return 0;
