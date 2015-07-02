@@ -704,7 +704,7 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 				continue;
 			}
 			std::string s(strval);
-            if ( s[0] == '"' && s[s.size()-1] == '"' )
+            if ( s.size() > 1 && s[0] == '"' && s[s.size()-1] == '"' )
             {
                 s.erase(s.size()-1, 1);
                 s.erase(0, 1);
