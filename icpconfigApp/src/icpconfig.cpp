@@ -391,6 +391,10 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
     {
         setValue(h, "SIMULATE", "1", "{icpconfig final adjustment}");
     }
+	if (simulate)
+	{
+	    errlogSevPrintf(errlogMajor, "icpconfigLoad: ******** CONFIG HAS REQUESTED SIMULATION MODE ********\n");
+	}
 //	if (verbose)
 //	{
 //		printf("*** Macro report ***\n");
