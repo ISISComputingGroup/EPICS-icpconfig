@@ -376,7 +376,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	else
 	{
 	    printf("icpconfigLoad: last configuration was \"%s\"\n", configName.c_str());
-	    loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
+	    loadConfig(h, configName, config_root + "/configurations/", ioc_name, ioc_group, false, false, verbose);
 	}
 // old style files
     loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
