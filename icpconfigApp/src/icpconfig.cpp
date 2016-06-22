@@ -126,7 +126,10 @@ std::list<std::string> old_load_list;
 static std::string readFile(const std::string& filename)
 {
 	std::list<std::string> lines;
-	readFile(filename, lines);
+	if (readFile(filename, lines) < 0)
+	{
+		return "";
+	}
 	if (lines.size() > 0)
 	{
 	    return lines.front();
@@ -277,6 +280,9 @@ static void cleanName(std::string& item)
 
 static void icpconfigReport()
 {
+	const char* config_root = macEnvExpand("$(ICPCONFIGROOT)");
+	printf("icpconfigReport: *** Config Details ***\n");
+	printf("icpconfigReport: config root (ICPCONFIGROOT) is \"%s\"\n", (config_root != NULL ? config_root : "(NULL)"));
 	printf("icpconfigReport: *** Macro report ***\n");
 	for(std::map<std::string,MacroItem>::const_iterator it = macro_map.begin(); it != macro_map.end(); ++it)
 	{
@@ -361,13 +367,13 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
     setValue(h, "RECSIM", "0", "{initial default}");
 	if (config_name.size() == 0)
 	{
-	    configName = readFile(config_root + "/last_config.txt"); // name in file starts with '/'
+	    configName = readFile(config_root + "/last_config.txt"); 
 	}
 	else
 	{
-	    configName = std::string(config_name[0] == '/' ? "" : "/") + config_name;  // make sure name starts with '/'
+	    configName = config_name;
 	}
-    std::string config_dir = config_root + configName;
+    std::string config_dir = config_root + "/configurations/" + configName;
     setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "{initial default}");
 	if (configName.size() == 0)
 	{
@@ -375,8 +381,8 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	}
 	else
 	{
-	    printf("icpconfigLoad: last configuration was \"%s\"\n", configName.c_str());
-	    loadConfig(h, configName, config_root + "/configurations/", ioc_name, ioc_group, false, false, verbose);
+	    printf("icpconfigLoad: last configuration was \"%s\" (%s)\n", configName.c_str(), config_dir.c_str());
+	    loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	}
 // old style files
     loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
@@ -482,7 +488,7 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
     }
     else
     {
-		errlogPrintf("icpconfigLoad: unknown or unspecified simlevel \"%s\" - assuming not simulating\n", sim_level.c_str());
+		errlogPrintf("icpconfigLoad: unknown or unspecified sim level \"%s\" - assuming not simulating\n", sim_level.c_str());
         setValue(h, "DEVSIM", "0", config_name.c_str());
         setValue(h, "RECSIM", "0", config_name.c_str());
     }    
@@ -605,8 +611,9 @@ static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const st
 {
 	printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
 	load_list.push_back(config_name);
-    loadIOCs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
-    loadFiles(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+	std::string config_fullname = std::string("/components/") + config_name;
+    loadIOCs(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+    loadFiles(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	return 0;
 }	
 
@@ -621,9 +628,10 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 	++depth;
 	printf("icpconfigLoad: configuration \"%s\"\n", config_name.c_str());
 	load_list.push_back(config_name);
-	loadComponents(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
-    loadIOCs(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
-    loadFiles(h, config_name, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+	std::string config_fullname = std::string("/configurations/") + config_name;
+	loadComponents(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+    loadIOCs(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
+    loadFiles(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
 	--depth;
 	return 0;
 }
