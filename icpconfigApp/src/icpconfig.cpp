@@ -464,41 +464,39 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	printf("icpconfigLoad: Loading IOC sim level \"%s\"\n", config_name.c_str());
 	pugi::xpath_query ioc_query("/iocs/ioc[@name=$iocname]", &vars);
 	pugi::xpath_node_set ioc_node = ioc_query.evaluate_node_set(doc);
-    std::string sim_level;
-    bool disable = false;
     if (ioc_node.size() > 0)
     {
-	    sim_level = ioc_node[0].node().attribute("simlevel").value();
-        disable = ioc_node[0].node().attribute("disable").as_bool();
-    }
-    if (sim_level == "none")
-    {
-        setValue(h, "DEVSIM", "0", config_name.c_str());
-        setValue(h, "RECSIM", "0", config_name.c_str());
-    }
-    else if (sim_level == "recsim")
-    {
-        setValue(h, "DEVSIM", "0", config_name.c_str());
-        setValue(h, "RECSIM", "1", config_name.c_str());
-    }
-    else if (sim_level == "devsim")
-    {
-        setValue(h, "DEVSIM", "1", config_name.c_str());
-        setValue(h, "RECSIM", "0", config_name.c_str());
-    }
-    else
-    {
-		errlogPrintf("icpconfigLoad: unknown or unspecified sim level \"%s\" - assuming not simulating\n", sim_level.c_str());
-        setValue(h, "DEVSIM", "0", config_name.c_str());
-        setValue(h, "RECSIM", "0", config_name.c_str());
-    }    
-    if (disable)
-    {
-        setValue(h, "DISABLE", "1", config_name.c_str());
-    }
-    else
-    {
-        setValue(h, "DISABLE", "0", config_name.c_str());
+	    std::string sim_level = ioc_node[0].node().attribute("simlevel").value();
+        bool disable = ioc_node[0].node().attribute("disable").as_bool();
+        if (sim_level == "none")
+        {
+            setValue(h, "DEVSIM", "0", config_name.c_str());
+            setValue(h, "RECSIM", "0", config_name.c_str());
+        }
+        else if (sim_level == "recsim")
+        {
+            setValue(h, "DEVSIM", "0", config_name.c_str());
+            setValue(h, "RECSIM", "1", config_name.c_str());
+        }
+        else if (sim_level == "devsim")
+        {
+            setValue(h, "DEVSIM", "1", config_name.c_str());
+            setValue(h, "RECSIM", "0", config_name.c_str());
+        }
+        else
+        {
+		    errlogPrintf("icpconfigLoad: unknown sim level \"%s\" - assuming not simulating\n", sim_level.c_str());
+            setValue(h, "DEVSIM", "0", config_name.c_str());
+            setValue(h, "RECSIM", "0", config_name.c_str());
+        }    
+        if (disable)
+        {
+            setValue(h, "DISABLE", "1", config_name.c_str());
+        }
+        else
+        {
+            setValue(h, "DISABLE", "0", config_name.c_str());
+		}
     }
 	// ioc macros
 	printf("icpconfigLoad: Loading IOC macros for \"%s\"\n", config_name.c_str());
