@@ -315,7 +315,7 @@ static void icpconfigReport()
 	}
  }
 
-static int icpconfigLoadMain(const std::string& config_name, const std::string& ioc_name, const std::string& ioc_group, int options, const std::string& configHost, const std::string& configBase)
+static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::string& ioc_name, const std::string& ioc_group, int options, const std::string& configHost, const std::string& configBase)
 {
 	MAC_HANDLE *h = NULL;
 	const char *config_base, *config_host;
@@ -330,7 +330,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	if (nullOrZeroLength(config_base))
 	{
 		errlogPrintf("icpconfigLoad: failed (ICPCONFIGBASE environment variable not set and no configBase parameter specified)\n");
-		return -1;
+		return NULL;
 	}
 	if (configHost.size() == 0)
 	{
@@ -343,7 +343,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 	if (nullOrZeroLength(config_host))
 	{
 		errlogPrintf("icpconfigLoad: failed (ICPCONFIGHOST environment variable not set)\n");
-		return -1;
+		return NULL;
 	}
 	if (options == 0)
 	{
@@ -358,7 +358,7 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
     if ( macCreateHandle(&h, NULL) )
 	{
 		errlogPrintf("icpconfigLoad: failed (macCreateHandle)\n");
-	    return -1;
+	    return NULL;
 	}
 //  macSuppressWarning(h, TRUE);
     setValue(h, "SIMULATE", "0", "{initial default}");
@@ -406,12 +406,11 @@ static int icpconfigLoadMain(const std::string& config_name, const std::string& 
 //		printf("*** Macro report ***\n");
 //		macReportMacros(h);
 //	}
-	macDeleteHandle(h);
 	if (verbose)
 	{
 	    icpconfigReport();
 	}
-	return 0;
+	return h;
 }	
 
 /// defines ICPCONFIGDIR based on ICPCONFIGBASE, ICPCONFIGHOST, ICPCONFIGROOT and ICPCONFIGOPTIONS
@@ -425,14 +424,59 @@ static int icpconfigLoad(int options, const char *iocName, const char* configBas
 		return -1;
 	}
 	std::string ioc_group = getIOCGroup();
-	icpconfigLoadMain("", ioc_name, ioc_group, options, "", (configBase != NULL ? configBase : ""));
-	return 0;
+	MAC_HANDLE* h = icpconfigLoadMain("", ioc_name, ioc_group, options, "", (configBase != NULL ? configBase : ""));
+	if (h != NULL)
+	{
+		macDeleteHandle(h);
+	    return 0;
+	}
+	else
+	{
+		return -1;
+	}
 }
 
 epicsShareExtern int icpconfigCheck(const std::string& configName, const std::string& ioc_name, const std::string& ioc_group, const std::string& configHost, const std::string& configBase, int options)
 {
-	icpconfigLoadMain(configName, ioc_name, ioc_group, options, configHost, configBase);
-    return 0;
+	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, ioc_group, options, configHost, configBase);
+	if (h != NULL)
+	{
+		macDeleteHandle(h);
+	    return 0;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+/// expand macros in file specified
+epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std::string& outFileName, const std::string& configName)
+{
+	MAC_HANDLE* h = icpconfigLoadMain(configName, "", "", 0, "", "");
+	if (h != NULL)
+	{
+		std::list<std::string> lines;
+        readFile(inFileName, lines);
+		std::fstream fs;
+		fs.open(outFileName, std::ios::out);
+		for(std::list<std::string>::const_iterator it = lines.begin(); it != lines.end() && fs.good(); ++it)
+		{
+			char* e = macEnvExpand(it->c_str());
+			if (e != NULL)
+			{
+			    fs << e << std::endl;
+			    free(e);
+			}
+		}
+		fs.close();
+		macDeleteHandle(h);
+	    return 0;
+	}
+	else
+	{
+		return -1;
+	}
 }
 
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)

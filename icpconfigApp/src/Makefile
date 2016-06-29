@@ -21,10 +21,15 @@ icpconfig_SRCS += icpconfig.cpp
 icpconfig_LIBS += utilities pugixml
 icpconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-PROD_IOC += icpconfigCheck
+PROD_IOC += icpconfigCheck icpconfigEnvExpand
+
 icpconfigCheck_SRCS += icpconfigCheck.cpp
 icpconfigCheck_LIBS += icpconfig utilities pugixml pcre
 icpconfigCheck_LIBS += $(EPICS_BASE_IOC_LIBS)
+
+icpconfigEnvExpand_SRCS += icpconfigEnvExpand.cpp
+icpconfigEnvExpand_LIBS += icpconfig utilities pugixml pcre
+icpconfigEnvExpand_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #===========================
 
