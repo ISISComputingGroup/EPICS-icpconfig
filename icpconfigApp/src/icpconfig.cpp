@@ -459,7 +459,7 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 		std::list<std::string> lines;
         readFile(inFileName, lines);
 		std::fstream fs;
-		fs.open(outFileName, std::ios::out);
+		fs.open(outFileName.c_str(), std::ios::out);
 		for(std::list<std::string>::const_iterator it = lines.begin(); it != lines.end() && fs.good(); ++it)
 		{
 			char* e = macEnvExpand(it->c_str());
