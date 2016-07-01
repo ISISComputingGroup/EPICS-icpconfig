@@ -53,7 +53,7 @@
 
 #include "icpconfig.h"
 
-static bool simulate = false, devsim = false, recsim = false; 
+static bool simulate = false, devsim = false, recsim = false, recdisable = false; 
 
 static int icpconfigLoad(int options, const char *iocName, const char* configBase);
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
@@ -236,11 +236,13 @@ static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value,
     {
         if (is_yes)
         {
+			recdisable = true;
 			ifsim = " ";
 			ifnotsim = "#";
         }
         else
         {
+			recdisable = false;
 			ifsim = "#";
 			ifnotsim = " ";
         }
@@ -254,11 +256,18 @@ static void setValue(MAC_HANDLE *h, const char* name, const char* value, const c
     MacroItem& item = macro_map[name];
     if (item.defined)
     {
-	    printf("icpconfigLoad: $(%s)=\"%s\" [previous \"%s\" (%s)]\n", name, value, item.value.c_str(), item.source.c_str());
+		if ( strcmp(value, item.value.c_str()) != 0 )
+		{
+	        printf("icpconfigLoad: * $(%s)=\"%s\" (%s) [previous \"%s\" (%s)]\n", name, value, source, item.value.c_str(), item.source.c_str());
+		}
+		else
+		{
+	        printf("icpconfigLoad:   $(%s)=\"%s\" (%s) [previous (%s)]\n", name, value, source, item.source.c_str());
+		}
     }	
 	else
 	{
-	    printf("icpconfigLoad: $(%s)=\"%s\"\n", name, value);
+	    printf("icpconfigLoad: * $(%s)=\"%s\" (%s)\n", name, value, source);
 	}
 	item = MacroItem(value, source);
 	macPutValue(h, name, value);
@@ -388,18 +397,22 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
     loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
-    loadMacroFile(h, config_root + "/../globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
-	loadMacroFile(h, config_root + "/../" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
-	loadMacroFile(h, config_root + "/../" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 
-    //
-    if (devsim || recsim)
+    if ( (devsim || recsim) && !simulate )
     {
         setValue(h, "SIMULATE", "1", "{icpconfig final adjustment}");
     }
+	else if ( simulate && !(devsim || recsim) )
+	{
+        setValue(h, "RECSIM", "1", "{icpconfig final adjustment}");
+	}
 	if (simulate)
 	{
-	    errlogSevPrintf(errlogMajor, "icpconfigLoad: ******** CONFIG HAS REQUESTED SIMULATION MODE ********\n");
+	    errlogSevPrintf(errlogMajor, "icpconfigLoad: ******** SIMULATION MODE ********\n");
+	}
+	if (recdisable)
+	{
+	    errlogSevPrintf(errlogMajor, "icpconfigLoad: ******** RECORD PROCESSING DISABLED ********\n");
 	}
 //	if (verbose)
 //	{
