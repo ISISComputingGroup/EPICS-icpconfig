@@ -156,7 +156,7 @@ static long dbpfStatic(const char   *pname, const char *pvalue)
 		status = dbPutString(&dbentry, pvalue);
 		if ( status != 0 )
 		{
-			errlogPrintf("dbpfStatic: error setting \"%s\"=\"%s\"\n", pname, pvalue);
+			errlogPrintf("dbpfStatic: error %d from dbPutString() when setting \"%s\"=\"%s\"\n", status, pname, pvalue);
 		}
 	}
 	else
@@ -704,11 +704,15 @@ static int setPVValuesStatic()
 
 static int setPVValues()
 {
+	int status;
 	printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", (int)pv_map.size());
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
 	    printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
-	    dbpf(it->first.c_str(), it->second.value.c_str());
+	    if ( (status = dbpf(it->first.c_str(), it->second.value.c_str())) != 0 )
+		{
+			errlogPrintf("setPVValues: error %d from dbpf() when setting \"%s\"=\"%s\"\n", status, it->first.c_str(), it->second.value.c_str());
+		}
 	}
 	return 0;
 }
