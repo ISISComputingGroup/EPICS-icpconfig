@@ -145,23 +145,32 @@ static long dbpfStatic(const char   *pname, const char *pvalue)
 {
 	DBENTRY         dbentry;  
 	int             status;	
+    char            realName[81];  // EPICS DB record names limited to 80 chars plus null terminator.
+    
 	if (!pdbbase) 
 	{
 		errlogPrintf("dbpfStatic: No database loaded\n");
 		return -1;
 	}
+    
+    strcpy(realName, pname);
+    
+    if (strchr(realName,'.') == 0) {
+        strcat(realName,".VAL"); /* if no field name, add default */
+    }
+    
 	dbInitEntry(pdbbase, &dbentry);	 
-	if ( (status = dbFindRecord(&dbentry, pname)) == 0 ) 
+	if ( (status = dbFindRecord(&dbentry, realName)) == 0 ) 
 	{
 		status = dbPutString(&dbentry, pvalue);
 		if ( status != 0 )
 		{
-			errlogPrintf("dbpfStatic: error %d from dbPutString() when setting \"%s\"=\"%s\"\n", status, pname, pvalue);
+			errlogPrintf("dbpfStatic: error %d from dbPutString() when setting \"%s\"=\"%s\"\n", status, realName, pvalue);
 		}
 	}
 	else
 	{
-		errlogPrintf("dbpfStatic: cannot find \"%s\"\n", pname);
+		errlogPrintf("dbpfStatic: cannot find \"%s\"\n", realName);
 	}
 	dbFinishEntry(&dbentry);
 	return status;
