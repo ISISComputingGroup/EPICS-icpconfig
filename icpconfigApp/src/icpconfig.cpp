@@ -511,7 +511,7 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 	}
 }
 
-epicsShareExtern std::string icpconfigGetMacros(const std::string& configName, const std::string& ioc_name, const std::string& configHost)
+epicsShareExtern std::string icpconfigGetMacros(const std::string& ioc_name, const std::string& configName, const std::string& configHost)
 {
     icpOptions options = QuietOutput;
 	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, "", options, configHost, "");
