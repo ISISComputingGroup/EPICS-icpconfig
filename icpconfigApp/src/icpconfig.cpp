@@ -53,7 +53,7 @@
 
 #include "icpconfig.h"
 
-static bool simulate = false, devsim = false, recsim = false, recdisable = false; 
+static bool simulate = false, devsim = false, recsim = false, recdisable = false, quiet = false; 
 
 static int icpconfigLoad(int options, const char *iocName, const char* configBase);
 static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose);
@@ -263,21 +263,24 @@ static void checkSpecialVals(MAC_HANDLE *h, const char* name, const char* value,
 static void setValue(MAC_HANDLE *h, const char* name, const char* value, const char* source)
 {
     MacroItem& item = macro_map[name];
-    if (item.defined)
+    if (!quiet)
     {
-		if ( strcmp(value, item.value.c_str()) != 0 )
-		{
-	        printf("icpconfigLoad: * $(%s)=\"%s\" (%s) [previous \"%s\" (%s)]\n", name, value, source, item.value.c_str(), item.source.c_str());
-		}
-		else
-		{
-	        printf("icpconfigLoad:   $(%s)=\"%s\" (%s) [previous (%s)]\n", name, value, source, item.source.c_str());
-		}
-    }	
-	else
-	{
-	    printf("icpconfigLoad: * $(%s)=\"%s\" (%s)\n", name, value, source);
-	}
+        if (item.defined)
+        {
+		    if ( strcmp(value, item.value.c_str()) != 0 )
+		    {
+	            printf("icpconfigLoad: * $(%s)=\"%s\" (%s) [previous \"%s\" (%s)]\n", name, value, source, item.value.c_str(), item.source.c_str());
+		    }
+		    else
+		    {
+	            printf("icpconfigLoad:   $(%s)=\"%s\" (%s) [previous (%s)]\n", name, value, source, item.source.c_str());
+		    }
+        }	
+	    else
+	    {
+	        printf("icpconfigLoad: * $(%s)=\"%s\" (%s)\n", name, value, source);
+	    }
+    }
 	item = MacroItem(value, source);
 	macPutValue(h, name, value);
 	epicsEnvSet(name, value);
@@ -368,11 +371,15 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
 	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
 	}
 	bool verbose = (options & VerboseOutput);
+	quiet = (options & QuietOutput);
 	std::string configName;
-	printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host);
 	std::string config_root = macEnvExpand("$(ICPCONFIGROOT)");
-	printf("icpconfigLoad: config base (ICPCONFIGBASE) is \"%s\"\n", config_base);
-	printf("icpconfigLoad: config root (ICPCONFIGROOT) is \"%s\"\n", config_root.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host);
+	    printf("icpconfigLoad: config base (ICPCONFIGBASE) is \"%s\"\n", config_base);
+	    printf("icpconfigLoad: config root (ICPCONFIGROOT) is \"%s\"\n", config_root.c_str());
+    }
     if ( macCreateHandle(&h, NULL) )
 	{
 		errlogPrintf("icpconfigLoad: failed (macCreateHandle)\n");
@@ -399,7 +406,10 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
 	}
 	else
 	{
-	    printf("icpconfigLoad: last configuration was \"%s\" (%s)\n", configName.c_str(), config_dir.c_str());
+        if (!quiet)
+        {
+	        printf("icpconfigLoad: last configuration was \"%s\" (%s)\n", configName.c_str(), config_dir.c_str());
+        }
 	    loadConfig(h, configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	}
 // old style files
@@ -503,7 +513,7 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 
 epicsShareExtern std::string icpconfigGetMacros(const std::string& configName, const std::string& ioc_name, const std::string& configHost)
 {
-    icpOptions options = VerboseOutput;
+    icpOptions options = QuietOutput;
 	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, "", options, configHost, "");
 	if (h != NULL)
 	{
@@ -539,7 +549,10 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	vars.set("iocname",ioc_name.c_str());
 	vars.set("iocgroup",ioc_group.c_str());
 	// default macros
-	printf("icpconfigLoad: Loading default macros for \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Loading default macros for \"%s\"\n", config_name.c_str());
+    }
 	pugi::xpath_node_set default_macros = doc.select_nodes("/iocs/defaults/macros/macro");
 	default_macros.sort(); // forward document order
 	for (pugi::xpath_node_set::const_iterator it = default_macros.begin(); it != default_macros.end(); ++it)
@@ -549,7 +562,10 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
         setValue(h, name.c_str(), value.c_str(), config_name.c_str());
 	}
     // ioc sim level
-	printf("icpconfigLoad: Loading IOC sim level \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Loading IOC sim level \"%s\"\n", config_name.c_str());
+    }
 	pugi::xpath_query ioc_query("/iocs/ioc[@name=$iocname]", &vars);
 	pugi::xpath_node_set ioc_node = ioc_query.evaluate_node_set(doc);
     if (ioc_node.size() > 0)
@@ -587,7 +603,10 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		}
     }
 	// ioc macros
-	printf("icpconfigLoad: Loading IOC macros for \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Loading IOC macros for \"%s\"\n", config_name.c_str());
+    }
 	pugi::xpath_query macros_query("/iocs/ioc[@name=$iocname]/macros/macro", &vars);
 	pugi::xpath_node_set ioc_macros = macros_query.evaluate_node_set(doc);
 	for (pugi::xpath_node_set::const_iterator it = ioc_macros.begin(); it != ioc_macros.end(); ++it)
@@ -597,27 +616,36 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
         setValue(h, name.c_str(), value.c_str(), config_name.c_str());
 	}
 	// ioc pvs
-	printf("icpconfigLoad: Loading IOC PVs for \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Loading IOC PVs for \"%s\"\n", config_name.c_str());
+    }
 	pugi::xpath_query pvs_query("/iocs/ioc[@name=$iocname]/pvs/pv", &vars);
 	pugi::xpath_node_set ioc_pvs = pvs_query.evaluate_node_set(doc);
 	for (pugi::xpath_node_set::const_iterator it = ioc_pvs.begin(); it != ioc_pvs.end(); ++it)
 	{
 		std::string name = it->node().attribute("name").value();
 		std::string value = it->node().attribute("value").value();
-		PVItem& item = pv_map[name]; 
-		if (item.defined)
-		{
-		    printf("icpconfigLoad: %s=\"%s\" [previous \"%s\" (%s)]\n", 
+		PVItem& item = pv_map[name];
+        if (!quiet)
+        {
+		    if (item.defined)
+		    {
+		        printf("icpconfigLoad: %s=\"%s\" [previous \"%s\" (%s)]\n", 
 							name.c_str(), value.c_str(), item.value.c_str(), item.source.c_str());
-		}
-		else
-		{
-			printf("icpconfigLoad: %s=\"%s\"\n", name.c_str(), value.c_str());
-		}
+		    }
+		    else
+		    {
+			    printf("icpconfigLoad: %s=\"%s\"\n", name.c_str(), value.c_str());
+		    }
+        }
         item = PVItem(value, config_name);
 	}
 	// ioc pv sets
-	printf("icpconfigLoad: Loading IOC PV sets for \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Loading IOC PV sets for \"%s\"\n", config_name.c_str());
+    }
 	pugi::xpath_query pvsets_query("/iocs/ioc[@name=$iocname]/pvsets/pvset", &vars);
 	pugi::xpath_node_set ioc_pvsets = pvsets_query.evaluate_node_set(doc);
 	std::string files_dir = config_root + config_name + "/files/";
@@ -626,15 +654,18 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 		std::string name = it->node().attribute("name").value();
 		bool enabled = it->node().attribute("enabled").as_bool();
 		PVSetItem& item = pvset_map[name];
-		if (item.defined)
-		{
-		    printf("icpconfigLoad: \"%s\" is %s [previous %s (%s)]\n", 
+        if (!quiet)
+        {
+		    if (item.defined)
+		    {
+		        printf("icpconfigLoad: \"%s\" is %s [previous %s (%s)]\n", 
 					name.c_str(), (enabled ? "ENABLED" : "DISABLED"), (item.enabled ? "ENABLED" : "DISABLED"), config_name.c_str());
-		}
-		else
-		{
-		    printf("icpconfigLoad: \"%s\" is %s\n", name.c_str(), (enabled ? "ENABLED" : "DISABLED"));
-		}
+		    }
+		    else
+		    {
+		        printf("icpconfigLoad: \"%s\" is %s\n", name.c_str(), (enabled ? "ENABLED" : "DISABLED"));
+		    }
+        }
         item = PVSetItem(enabled, config_name);
 		cleanName(name);
 		if (enabled)
@@ -656,7 +687,10 @@ static int loadFiles(MAC_HANDLE *h, const std::string& config_name, const std::s
     std::list<std::string> files;
 	std::string files_dir = config_root + config_name + "/files";
 	getFileList(files_dir, files);
-	printf("icpconfigLoad: Found %d files for \"%s\"\n", (int)files.size(), config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: Found %d files for \"%s\"\n", (int)files.size(), config_name.c_str());
+    }
 	for(std::list<std::string>::iterator it = files.begin(); it != files.end(); ++it)
 	{
 	    std::string item = *it;
@@ -673,7 +707,10 @@ static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const s
 	std::string xfile = config_root + config_name + "/components.xml";
 	if (access(xfile.c_str(), 0) != 0)
 	{
-	    printf("icpconfigLoad: no components for \"%s\"\n", config_name.c_str());
+        if (!quiet)
+        {
+	        printf("icpconfigLoad: no components for \"%s\"\n", config_name.c_str());
+        }
 		return 0; // no components
 	}
 	pugi::xml_parse_result result = doc.load_file(xfile.c_str());
@@ -684,7 +721,10 @@ static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const s
 	}
 	pugi::xpath_node_set components = doc.select_nodes("/components/component");
 	components.sort(); // forward document order
-	printf("icpconfigLoad: loading %d component(s) for \"%s\"\n", (int)components.size(), config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: loading %d component(s) for \"%s\"\n", (int)components.size(), config_name.c_str());
+    }
 	for (pugi::xpath_node_set::const_iterator it = components.begin(); it != components.end(); ++it)
 	{
 		std::string component = it->node().attribute("name").value();
@@ -695,7 +735,10 @@ static int loadComponents(MAC_HANDLE *h, const std::string& config_name, const s
 
 static int loadComponent(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
-	printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: component \"%s\"\n", config_name.c_str());
+    }
 	load_list.push_back(config_name);
 	std::string config_fullname = std::string("/components/") + config_name;
     loadIOCs(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
@@ -712,7 +755,10 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 		return -1;
 	}
 	++depth;
-	printf("icpconfigLoad: configuration \"%s\"\n", config_name.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: configuration \"%s\"\n", config_name.c_str());
+    }
 	load_list.push_back(config_name);
 	std::string config_fullname = std::string("/configurations/") + config_name;
 	loadComponents(h, config_fullname, config_root, ioc_name, ioc_group, warn_if_not_found, filter, verbose);
@@ -724,10 +770,16 @@ static int loadConfig(MAC_HANDLE *h, const std::string& config_name, const std::
 
 static int setPVValuesStatic()
 {
-	printf("icpconfigLoad: setPVValuesStatic setting %d pvs (pre iocInit)\n", (int)pv_map.size());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: setPVValuesStatic setting %d pvs (pre iocInit)\n", (int)pv_map.size());
+    }
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
-	    printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
+        if (!quiet)
+        {
+	        printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
+        }
  	    dbpfStatic(it->first.c_str(), it->second.value.c_str());
 	}
 	return 0;
@@ -736,10 +788,16 @@ static int setPVValuesStatic()
 static int setPVValues()
 {
 	int status;
-	printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", (int)pv_map.size());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: setPVValues setting %d pvs (post iocInit)\n", (int)pv_map.size());
+    }
     for(std::map<std::string,PVItem>::const_iterator it = pv_map.begin(); it != pv_map.end(); ++it)
 	{
-	    printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
+        if (!quiet)
+        {
+	        printf("icpconfigLoad: %s=\"%s\"\n", it->first.c_str(), it->second.value.c_str());
+        }
 	    if ( (status = dbpf(it->first.c_str(), it->second.value.c_str())) != 0 )
 		{
 			errlogPrintf("setPVValues: error %d from dbpf() when setting \"%s\"=\"%s\"\n", status, it->first.c_str(), it->second.value.c_str());
@@ -765,7 +823,10 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 	old_load_list.push_back(file);
 	std::string prefix_name = ioc_name + "__";
 	std::string prefix_group = ioc_group + "__";
-	printf("icpconfigLoad: loading old macro file \"%s\"\n", file.c_str());
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: loading old macro file \"%s\"\n", file.c_str());
+    }
 	unsigned nval = 0, nval_ioc = 0, nval_group = 0, line_number = 0;
 	while(input_file.good())
 	{
@@ -845,7 +906,10 @@ static int loadMacroFile(MAC_HANDLE *h, const std::string& file, const std::stri
 		free(pairs);
 	}		
 	input_file.close();
-	printf("icpconfigLoad: loaded %u macros from old macro file \"%s\" (%d ioc, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
+    if (!quiet)
+    {
+	    printf("icpconfigLoad: loaded %u macros from old macro file \"%s\" (%d ioc, %d group)\n", nval, file.c_str(), nval_ioc, nval_group);
+    }
     return 0;
 }
 

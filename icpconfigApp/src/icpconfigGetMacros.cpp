@@ -68,6 +68,6 @@ int main(int argc, char* argv[])
 	{
 	    configHost = argv[3];
 	}
-    icpconfigGetMacros(configName, ioc_name, configHost);
+    std::cout << icpconfigGetMacros(configName, ioc_name, configHost) << std::endl;
     return 0;
 }
