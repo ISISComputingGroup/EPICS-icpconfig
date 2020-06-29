@@ -501,6 +501,28 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 	}
 }
 
+epicsShareExtern std::string icpconfigGetMacros(const std::string& configName, const std::string& ioc_name, const std::string& configHost)
+{
+    icpOptions options = VerboseOutput;
+	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, "", options, configHost, "");
+	if (h != NULL)
+	{
+		macDeleteHandle(h);
+        std::list<std::string> names_and_values;
+        for(std::map<std::string,MacroItem>::const_iterator it = macro_map.begin(); it != macro_map.end(); ++it)
+        {
+            names_and_values.push_back(it->first);
+            names_and_values.push_back(it->second.value);
+        }
+        return json_list_to_array(names_and_values);
+	}
+	else
+	{
+		return "";
+	}
+}
+
+
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	pugi::xml_document doc;
