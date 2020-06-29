@@ -55,19 +55,19 @@
 
 int main(int argc, char* argv[])
 {
-   std::string configName, ioc_name, configHost;
+    std::string iocName, configName, configHost;
 	if (argc > 1)
 	{
-	    configName = argv[1];
+	    iocName = argv[1];
 	}
 	if (argc > 2)
 	{
-	    ioc_name = argv[2];
+	    configName = argv[2];
 	}
 	if (argc > 3)
 	{
 	    configHost = argv[3];
 	}
-    std::cout << icpconfigGetMacros(configName, ioc_name, configHost) << std::endl;
+    std::cout << icpconfigGetMacros(iocName, configName, configHost) << std::endl;
     return 0;
 }

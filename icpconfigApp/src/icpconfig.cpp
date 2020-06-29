@@ -511,10 +511,12 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 	}
 }
 
-epicsShareExtern std::string icpconfigGetMacros(const std::string& ioc_name, const std::string& configName, const std::string& configHost)
+epicsShareExtern std::string icpconfigGetMacros(const std::string& iocName, const std::string& configName, const std::string& configHost)
 {
     icpOptions options = QuietOutput;
-	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, "", options, configHost, "");
+	std::string ioc_name = setIOCName(iocName.c_str());
+	std::string ioc_group = getIOCGroup();
+	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, ioc_group, options, configHost, "");
 	if (h != NULL)
 	{
 		macDeleteHandle(h);
