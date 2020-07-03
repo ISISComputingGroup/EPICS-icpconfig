@@ -520,13 +520,12 @@ epicsShareExtern std::string icpconfigGetMacros(const std::string& iocName, cons
 	if (h != NULL)
 	{
 		macDeleteHandle(h);
-        std::list<std::string> names_and_values;
+        std::map<std::string, std::string> names_and_values;
         for(std::map<std::string,MacroItem>::const_iterator it = macro_map.begin(); it != macro_map.end(); ++it)
         {
-            names_and_values.push_back(it->first);
-            names_and_values.push_back(it->second.value);
+            names_and_values[it->first] = it->second.value;
         }
-        return json_list_to_array(names_and_values);
+        return json_map_to_node(names_and_values);
 	}
 	else
 	{
