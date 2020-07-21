@@ -1,6 +1,7 @@
 PUGIXML=$(SUPPORT)/pugixml/master
 UTILITIES=$(SUPPORT)/utilities/master
 PCRE=$(SUPPORT)/pcre/master
+LIBJSON=$(SUPPORT)/libjson/master
 
 # optional extra local definitions here
 -include $(TOP)/configure/RELEASE.private

@@ -24,15 +24,15 @@ icpconfig_LIBS += $(EPICS_BASE_IOC_LIBS)
 PROD_IOC += icpconfigCheck icpconfigEnvExpand icpconfigGetMacros
 
 icpconfigCheck_SRCS += icpconfigCheck.cpp
-icpconfigCheck_LIBS += icpconfig utilities pugixml pcre
+icpconfigCheck_LIBS += icpconfig utilities libjson pugixml pcre
 icpconfigCheck_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 icpconfigEnvExpand_SRCS += icpconfigEnvExpand.cpp
-icpconfigEnvExpand_LIBS += icpconfig utilities pugixml pcre
+icpconfigEnvExpand_LIBS += icpconfig utilities libjson pugixml pcre
 icpconfigEnvExpand_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 icpconfigGetMacros_SRCS += icpconfigGetMacros.cpp
-icpconfigGetMacros_LIBS += icpconfig utilities pugixml pcre
+icpconfigGetMacros_LIBS += icpconfig utilities libjson pugixml pcre
 icpconfigGetMacros_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #===========================
