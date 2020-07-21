@@ -19,7 +19,7 @@ testicpconfig_DBD += base.dbd
 testicpconfig_DBD += icpconfig.dbd
 
 # Add all the support libraries needed by this IOC
-testicpconfig_LIBS += icpconfig utilities pugixml pcre
+testicpconfig_LIBS += icpconfig utilities libjson pugixml pcre
 
 # testicpconfig_registerRecordDeviceDriver.cpp derives from testicpconfig.dbd
 testicpconfig_SRCS += testicpconfig_registerRecordDeviceDriver.cpp
