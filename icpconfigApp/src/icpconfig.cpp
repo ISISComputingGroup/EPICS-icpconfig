@@ -511,28 +511,22 @@ epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std
 	}
 }
 
-epicsShareExtern std::string icpconfigGetMacros(const std::string& iocName, const std::string& configName, const std::string& configHost)
+epicsShareExtern void icpconfigGetMacros(const std::string& iocName, const std::string& configName, const std::string& configHost, std::map<std::string, std::string>& names_and_values)
 {
     icpOptions options = QuietOutput;
 	std::string ioc_name = setIOCName(iocName.c_str());
 	std::string ioc_group = getIOCGroup();
+    names_and_values.clear();
 	MAC_HANDLE* h = icpconfigLoadMain(configName, ioc_name, ioc_group, options, configHost, "");
 	if (h != NULL)
 	{
 		macDeleteHandle(h);
-        std::map<std::string, std::string> names_and_values;
         for(std::map<std::string,MacroItem>::const_iterator it = macro_map.begin(); it != macro_map.end(); ++it)
         {
             names_and_values[it->first] = it->second.value;
         }
-        return json_map_to_node(names_and_values);
-	}
-	else
-	{
-		return "";
-	}
+    }
 }
-
 
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
