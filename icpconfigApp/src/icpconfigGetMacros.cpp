@@ -68,6 +68,8 @@ int main(int argc, char* argv[])
 	{
 	    configHost = argv[3];
 	}
-    std::cout << icpconfigGetMacros(iocName, configName, configHost) << std::endl;
+    std::map<std::string,std::string> names_and_values;
+    icpconfigGetMacros(iocName, configName, configHost, names_and_values);
+    std::cout << json_map_to_node(names_and_values) << std::endl;
     return 0;
 }
