@@ -417,6 +417,26 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
 	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 
+	const char *test_devsim, *test_recsim;
+ 
+	test_devsim = macEnvExpand("$(TESTDEVSIM=)");
+	test_recsim = macEnvExpand("$(TESTRECSIM=)");
+	
+	if (!nullOrZeroLength(test_devsim))  {
+		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+		simulate = true;
+		devsim = true;
+		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+		setValue(h, "DEVSIM", "1", "{simulation mode for tests}");
+	} else if (!nullOrZeroLength(test_recsim)) {
+		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+		simulate = true;
+		recsim = true;
+		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+		setValue(h, "RECSIM", "1", "{simulation mode for tests}");
+	}
+	
+
     if ( (devsim || recsim) && !simulate )
     {
         setValue(h, "SIMULATE", "1", "{icpconfig final adjustment}");
