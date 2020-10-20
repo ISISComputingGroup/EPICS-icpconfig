@@ -336,6 +336,33 @@ static void icpconfigReport()
 	}
  }
 
+// If running IOC tests, load in IOC test macros 
+static void loadTestMacros(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool verbose){
+	const char *testdevsim, *testrecsim;
+	bool testdevsim_is_empty, testrecsim_is_empty;
+
+	testdevsim = macEnvExpand("$(TESTDEVSIM=)");
+	testrecsim = macEnvExpand("$(TESTRECSIM=)");
+
+	testdevsim_is_empty = nullOrZeroLength(testdevsim);
+	testrecsim_is_empty = nullOrZeroLength(testrecsim);
+
+	if (!testdevsim_is_empty || !testrecsim_is_empty) {
+		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
+		simulate = true;
+		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+	}
+
+	if (!testdevsim_is_empty)  {
+		devsim = true;
+		setValue(h, "DEVSIM", "1", "{simulation mode for tests}");
+	} else if (!testrecsim_is_empty) {
+		recsim = true;
+		setValue(h, "RECSIM", "1", "{simulation mode for tests}");
+	}
+	
+}
+
 static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::string& ioc_name, const std::string& ioc_group, int options, const std::string& configHost, const std::string& configBase)
 {
 	MAC_HANDLE *h = NULL;
@@ -417,24 +444,7 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
 	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 
-	const char *test_devsim, *test_recsim;
- 
-	test_devsim = macEnvExpand("$(TESTDEVSIM=)");
-	test_recsim = macEnvExpand("$(TESTRECSIM=)");
-	
-	if (!nullOrZeroLength(test_devsim))  {
-		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
-		simulate = true;
-		devsim = true;
-		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
-		setValue(h, "DEVSIM", "1", "{simulation mode for tests}");
-	} else if (!nullOrZeroLength(test_recsim)) {
-		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
-		simulate = true;
-		recsim = true;
-		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
-		setValue(h, "RECSIM", "1", "{simulation mode for tests}");
-	}
+	loadTestMacros(h, configName, config_root, ioc_name, ioc_group, verbose);
 	
 
     if ( (devsim || recsim) && !simulate )
