@@ -338,17 +338,21 @@ static void icpconfigReport()
 
 // If running IOC tests, load in IOC test macros 
 static void loadTestMacros(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool verbose){
-	const char *testdevsim, *testrecsim;
+	std::string testdevsim, testrecsim, var_dir;
 	bool testdevsim_is_empty, testrecsim_is_empty;
 
 	testdevsim = macEnvExpand("$(TESTDEVSIM=)");
 	testrecsim = macEnvExpand("$(TESTRECSIM=)");
 
-	testdevsim_is_empty = nullOrZeroLength(testdevsim);
-	testrecsim_is_empty = nullOrZeroLength(testrecsim);
+	var_dir = macEnvExpand("$(ICPVARDIR)");
 
-	if (!testdevsim_is_empty || !testrecsim_is_empty) {
-		loadMacroFile(h, "C:/Instrument/var/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
+	testdevsim_is_empty = testdevsim.size() == 0;
+	testrecsim_is_empty = testrecsim.size() == 0;
+
+	if ((!testdevsim_is_empty || !testrecsim_is_empty) && (var_dir.size() == 0)) {
+		errlogPrintf("icpconfigLoad: failed (ICPVARDIR environment variable not set - cannot load test macros)\n");
+	} else if ((!testdevsim_is_empty || !testrecsim_is_empty)) {
+		loadMacroFile(h, var_dir + "/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
 		simulate = true;
 		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
 	}
