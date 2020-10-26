@@ -336,6 +336,37 @@ static void icpconfigReport()
 	}
  }
 
+// If running IOC tests, load in IOC test macros 
+static void loadTestMacros(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool verbose){
+	std::string testdevsim, testrecsim, var_dir;
+	bool testdevsim_is_empty, testrecsim_is_empty;
+
+	testdevsim = macEnvExpand("$(TESTDEVSIM=)");
+	testrecsim = macEnvExpand("$(TESTRECSIM=)");
+
+	var_dir = macEnvExpand("$(ICPVARDIR)");
+
+	testdevsim_is_empty = testdevsim.size() == 0;
+	testrecsim_is_empty = testrecsim.size() == 0;
+
+	if ((!testdevsim_is_empty || !testrecsim_is_empty) && (var_dir.size() == 0)) {
+		errlogPrintf("icpconfigLoad: failed (ICPVARDIR environment variable not set - cannot load test macros)\n");
+	} else if ((!testdevsim_is_empty || !testrecsim_is_empty)) {
+		loadMacroFile(h, var_dir + "/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
+		simulate = true;
+		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+	}
+
+	if (!testdevsim_is_empty)  {
+		devsim = true;
+		setValue(h, "DEVSIM", "1", "{simulation mode for tests}");
+	} else if (!testrecsim_is_empty) {
+		recsim = true;
+		setValue(h, "RECSIM", "1", "{simulation mode for tests}");
+	}
+	
+}
+
 static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::string& ioc_name, const std::string& ioc_group, int options, const std::string& configHost, const std::string& configBase)
 {
 	MAC_HANDLE *h = NULL;
@@ -416,6 +447,9 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
     loadMacroFile(h, config_root + "/globals.txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_group + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
 	loadMacroFile(h, config_root + "/" + ioc_name + ".txt", configName, config_root, ioc_name, ioc_group, false, false, verbose);
+
+	loadTestMacros(h, configName, config_root, ioc_name, ioc_group, verbose);
+	
 
     if ( (devsim || recsim) && !simulate )
     {
