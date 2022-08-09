@@ -35,9 +35,9 @@ icpconfigGetMacros_SRCS += icpconfigGetMacros.cpp
 icpconfigGetMacros_LIBS += icpconfig utilities libjson pugixml pcre
 icpconfigGetMacros_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-icpconfigGetMacros_SRCS += icpconfigGetMacro.cpp
-icpconfigGetMacros_LIBS += icpconfig utilities libjson pugixml pcre
-icpconfigGetMacros_LIBS += $(EPICS_BASE_IOC_LIBS)
+icpconfigGetMacro_SRCS += icpconfigGetMacro.cpp
+icpconfigGetMacro_LIBS += icpconfig utilities libjson pugixml pcre
+icpconfigGetMacro_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #===========================
 
