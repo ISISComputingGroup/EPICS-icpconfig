@@ -55,6 +55,7 @@
 
 int main(int argc, char* argv[])
 {
+    int quiet = 0;
     std::string inFileName, outFileName, configName;
 	if (argc > 1)
 	{
@@ -68,6 +69,10 @@ int main(int argc, char* argv[])
 	{
 	    configName = argv[3];
 	}
-    icpconfigEnvExpand(inFileName, outFileName, configName);
+	if (argc > 4)
+	{
+	    quiet = (atoi(argv[4]) != 0 ? 1 : 0);
+	}
+    icpconfigEnvExpand(inFileName, outFileName, configName, quiet);
     return 0;
 }

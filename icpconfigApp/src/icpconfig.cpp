@@ -435,7 +435,7 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
     setValue(h, "ICPCONFIGDIR", config_dir.c_str(), "{initial default}");
 	if (configName.size() == 0)
 	{
-		errlogPrintf("icpconfigLoad: no current config - $(ICPCONFIGROOT)/last_config.txt not found\n");
+		errlogPrintf("icpconfigLoad: no current config in $(ICPCONFIGROOT): %s/last_config.txt not found\n", config_root.c_str());
 	}
 	else
 	{
@@ -519,9 +519,10 @@ epicsShareExtern int icpconfigCheck(const std::string& configName, const std::st
 }
 
 /// expand macros in file specified
-epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std::string& outFileName, const std::string& configName)
+epicsShareExtern int icpconfigEnvExpand(const std::string& inFileName, const std::string& outFileName, const std::string& configName, int quiet)
 {
-	MAC_HANDLE* h = icpconfigLoadMain(configName, "", "", 0, "", "");
+    icpOptions options = (quiet != 0 ? QuietOutput : ICPOptionsNone);
+	MAC_HANDLE* h = icpconfigLoadMain(configName, "", "", options, "", "");
 	if (h != NULL)
 	{
 		std::list<std::string> lines;
