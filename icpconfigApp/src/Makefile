@@ -39,6 +39,8 @@ icpconfigGetMacro_SRCS += icpconfigGetMacro.cpp
 icpconfigGetMacro_LIBS += icpconfig utilities libjson pugixml pcre
 icpconfigGetMacro_LIBS += $(EPICS_BASE_IOC_LIBS)
 
+BIN_INSTALLS_WIN32 += $(PUGIXML)/bin/$(EPICS_HOST_ARCH)/pugixml.dll
+BIN_INSTALLS_WIN32 += $(wildcard $(UTILITIES)/bin/$(EPICS_HOST_ARCH)/*.dll)
 #===========================
 
 include $(TOP)/configure/RULES
