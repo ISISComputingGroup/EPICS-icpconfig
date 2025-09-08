@@ -565,6 +565,32 @@ epicsShareExtern void icpconfigGetMacros(const std::string& iocName, const std::
     }
 }
 
+static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
+	pugi::xml_document confXMLDoc;
+	std::string confXML = std::string(macEnvExpand("$(TOP)")) +"/iocBoot/" + std::string(macEnvExpand("$(IOC)")) +"/config.xml";
+	pugi::xml_parse_result result = confXMLDoc.load_file(confXML.c_str());
+	if (!result)
+	{
+	    std::cerr << "icpconfigLoad: Error in \"" << confXML << "\" " << result.description() << " at offset " << result.offset << std::endl;
+		return -1;
+	}
+	pugi::xpath_node_set default_macros = confXMLDoc.select_nodes("/ioc_config/config_part/macros/macro");
+	default_macros.sort(); // forward document order
+	if (!quiet)
+    {
+	    printf("icpconfigLoad: Checking %d macro(s) for default values in %s\n", (int)default_macros.size(), confXML.c_str());
+    }
+	for (pugi::xpath_node_set::const_iterator it = default_macros.begin(); it != default_macros.end(); ++it)
+	{
+		if (it->node().attribute("hasDefault").as_bool()) {
+			std::string name = it->node().attribute("name").value();
+			std::string value = it->node().attribute("defaultValue").value();
+        	setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+		}
+	}
+	return 0;
+}
+
 static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::string& config_root, const std::string& ioc_name, const std::string& ioc_group, bool warn_if_not_found, bool filter, bool verbose)
 {
 	pugi::xml_document doc;
@@ -582,29 +608,10 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	vars.set("iocname",ioc_name.c_str());
 	vars.set("iocgroup",ioc_group.c_str());
 	// default macros
-
-    pugi::xml_document confXMLDoc;
-	std::string confXML = std::string(macEnvExpand("$(TOP)")) +"/iocBoot/" + std::string(macEnvExpand("$(IOC)")) +"/config.xml";
-	result = confXMLDoc.load_file(confXML.c_str());
-	if (!result)
-	{
-	    std::cerr << "icpconfigLoad: Error in \"" << confXML << "\" " << result.description() << " at offset " << result.offset << std::endl;
+	if (loadDefaultMacros(h, config_name)) {
 		return -1;
 	}
-	pugi::xpath_node_set default_macros = confXMLDoc.select_nodes("/ioc_config/config_part/macros/macro");
-	default_macros.sort(); // forward document order
-	if (!quiet)
-    {
-	    printf("icpconfigLoad: checking %d macro(s) for default values in %s\n", (int)default_macros.size(), confXML.c_str());
-    }
-	for (pugi::xpath_node_set::const_iterator it = default_macros.begin(); it != default_macros.end(); ++it)
-	{
-		if (it->node().attribute("hasDefault").as_bool()) {
-			std::string name = it->node().attribute("name").value();
-			std::string value = it->node().attribute("defaultValue").value();
-        	setValue(h, name.c_str(), value.c_str(), config_name.c_str());
-		}
-	}
+    
     // ioc sim level
     if (!quiet)
     {
