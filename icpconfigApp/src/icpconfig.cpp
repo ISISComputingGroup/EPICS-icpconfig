@@ -575,23 +575,35 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	    std::cerr << "icpconfigLoad: Error in \"" << xfile << "\" " << result.description() << " at offset " << result.offset << std::endl;
 		return -1;
 	}
+	
 	pugi::xpath_variable_set vars;
 	vars.add("iocname", pugi::xpath_type_string);
 	vars.add("iocgroup", pugi::xpath_type_string);
 	vars.set("iocname",ioc_name.c_str());
 	vars.set("iocgroup",ioc_group.c_str());
 	// default macros
-    if (!quiet)
-    {
-	    printf("icpconfigLoad: Loading default macros for \"%s\"\n", config_name.c_str());
-    }
-	pugi::xpath_node_set default_macros = doc.select_nodes("/iocs/defaults/macros/macro");
+
+    pugi::xml_document confXMLDoc;
+	std::string confXML = std::string(macEnvExpand("$(TOP)")) +"/iocBoot/" + std::string(macEnvExpand("$(IOC)")) +"/config.xml";
+	result = confXMLDoc.load_file(confXML.c_str());
+	if (!result)
+	{
+	    std::cerr << "icpconfigLoad: Error in \"" << confXML << "\" " << result.description() << " at offset " << result.offset << std::endl;
+		return -1;
+	}
+	pugi::xpath_node_set default_macros = confXMLDoc.select_nodes("/ioc_config/config_part/macros/macro");
 	default_macros.sort(); // forward document order
+	if (!quiet)
+    {
+	    printf("icpconfigLoad: checking %d macro(s) for default values in %s\n", (int)default_macros.size(), confXML.c_str());
+    }
 	for (pugi::xpath_node_set::const_iterator it = default_macros.begin(); it != default_macros.end(); ++it)
 	{
-		std::string name = it->node().attribute("name").value();
-		std::string value = it->node().attribute("value").value();
-        setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+		if (it->node().attribute("hasDefault").as_bool()) {
+			std::string name = it->node().attribute("name").value();
+			std::string value = it->node().attribute("defaultValue").value();
+        	setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+		}
 	}
     // ioc sim level
     if (!quiet)
@@ -645,7 +657,14 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	{
 		std::string name = it->node().attribute("name").value();
 		std::string value = it->node().attribute("value").value();
-        setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+		MacroItem& item = macro_map[name];
+		if (item.defined) {
+			if(value!=""){
+				setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+			}
+		}else{
+        	setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+		}
 	}
 	// ioc pvs
     if (!quiet)
