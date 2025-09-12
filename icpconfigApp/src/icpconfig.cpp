@@ -567,7 +567,8 @@ epicsShareExtern void icpconfigGetMacros(const std::string& iocName, const std::
 
 static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
 	pugi::xml_document confXMLDoc;
-	std::string confXML = std::string(macEnvExpand("$(TOP)")) +"/iocBoot/" + std::string(macEnvExpand("$(IOC)")) +"/config.xml";
+	std::string configXMLDir = std::string(macEnvExpand("$(IOC)")) +"/config.xml";
+	std::string confXML = std::string(macEnvExpand("$(TOP)")) +"/iocBoot/" + configXMLDir;
 	pugi::xml_parse_result result = confXMLDoc.load_file(confXML.c_str());
 	if (!result)
 	{
@@ -585,7 +586,7 @@ static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
 		if (it->node().attribute("hasDefault").as_bool()) {
 			std::string name = it->node().attribute("name").value();
 			std::string value = it->node().attribute("defaultValue").value();
-        	setValue(h, name.c_str(), value.c_str(), config_name.c_str());
+        	setValue(h, name.c_str(), value.c_str(), configXMLDir.c_str());
 		}
 	}
 	return 0;
