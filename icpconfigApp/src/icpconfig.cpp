@@ -665,7 +665,6 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	{
 		std::string name = it->node().attribute("name").value();
 		std::string value = it->node().attribute("value").value();
-		MacroItem& item = macro_map[name];
 		setValue(h, name.c_str(), value.c_str(), config_name.c_str());
 	}
 	// ioc pvs
