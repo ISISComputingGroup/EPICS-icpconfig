@@ -108,6 +108,7 @@ struct PVSetItem
 };
 
 static std::map<std::string,PVSetItem> pvset_map;
+static bool defaultsSet = false;
 
 struct MacroItem
 {
@@ -589,6 +590,7 @@ static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
         	setValue(h, name.c_str(), value.c_str(), configXMLDir.c_str());
 		}
 	}
+	defaultsSet = true;
 	return 0;
 }
 
@@ -608,9 +610,11 @@ static int loadIOCs(MAC_HANDLE *h, const std::string& config_name, const std::st
 	vars.add("iocgroup", pugi::xpath_type_string);
 	vars.set("iocname",ioc_name.c_str());
 	vars.set("iocgroup",ioc_group.c_str());
-	// default macros
-	if (loadDefaultMacros(h, config_name)) {
-		return -1;
+	// default macros but only if they aren't already loaded, this prevents overwrites
+	if(!defaultsSet){
+		if (loadDefaultMacros(h, config_name)) {
+			return -1;
+		}
 	}
     
     // ioc sim level
