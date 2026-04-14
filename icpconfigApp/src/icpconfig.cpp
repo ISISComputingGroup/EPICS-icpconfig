@@ -346,18 +346,20 @@ static void loadTestMacros(MAC_HANDLE *h, const std::string& config_name, const 
 	testrecsim = macEnvExpand("$(TESTRECSIM=)");
 	testnosim = macEnvExpand("$(TESTNOSIM=)");
 
-	var_dir = macEnvExpand("$(ICPVARDIR)");
+	var_dir = macEnvExpand("$(ICPVARDIR=)");
 
 	testdevsim_is_empty = testdevsim.size() == 0;
 	testrecsim_is_empty = testrecsim.size() == 0;
 	testnosim_is_empty = testnosim.size() == 0;
 
-	if ((!testdevsim_is_empty || !testrecsim_is_empty || !testnosim_is_empty) && (var_dir.size() == 0)) {
-		errlogPrintf("icpconfigLoad: failed (ICPVARDIR environment variable not set - cannot load test macros)\n");
-	} else if ((!testdevsim_is_empty || !testrecsim_is_empty || !testnosim_is_empty)) {
-		loadMacroFile(h, var_dir + "/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
-		simulate = true;
-		setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+	if (!testdevsim_is_empty || !testrecsim_is_empty || !testnosim_is_empty) {
+        if (var_dir.size() == 0) {
+		    errlogPrintf("icpconfigLoad: failed (ICPVARDIR environment variable not set - cannot load test macros)\n");
+	    } else {
+		    loadMacroFile(h, var_dir + "/tmp/test_macros.txt", config_name, config_root, ioc_name, ioc_group, false, false, verbose);
+		    simulate = true;
+		    setValue(h, "SIMULATE", "1", "{simulation mode for tests}");
+        }
 	}
 
 	if (!testdevsim_is_empty)  {
@@ -402,12 +404,12 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
 	}
 	if (options == 0)
 	{
-	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS)"));
+	    options = atoi(macEnvExpand("$(ICPCONFIGOPTIONS=)"));
 	}
 	bool verbose = (options & VerboseOutput);
 	quiet = (options & QuietOutput);
 	std::string configName;
-	std::string config_root = macEnvExpand("$(ICPCONFIGROOT)");
+	std::string config_root = macEnvExpand("$(ICPCONFIGROOT=)");
     if (!quiet)
     {
 	    printf("icpconfigLoad: ioc \"%s\" group \"%s\" options 0x%x host \"%s\"\n", ioc_name.c_str(), ioc_group.c_str(), options, config_host);
@@ -424,7 +426,7 @@ static MAC_HANDLE* icpconfigLoadMain(const std::string& config_name, const std::
     setValue(h, "DISABLE", "0", "{initial default}");
     setValue(h, "DEVSIM", "0", "{initial default}");
     setValue(h, "RECSIM", "0", "{initial default}");
-	if (config_name.size() == 0)
+	if (config_name.size() == 0 && config_root.size() != 0)
 	{
 	    configName = readFile(config_root + "/last_config.txt"); 
 	}
@@ -570,6 +572,10 @@ static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
 	pugi::xml_document confXMLDoc;
 	if (macEnvExpand("$(IOC)") == NULL){
 		printf("icpconfigLoad: No $(IOC) macro, skipping load defaults\n");
+		return 0;
+	}
+	if (macEnvExpand("$(TOP)") == NULL){
+		printf("icpconfigLoad: No $(TOP) macro, skipping load defaults\n");
 		return 0;
 	}
 	std::string configXMLDir = std::string(macEnvExpand("$(IOC)")) +"/config.xml";
