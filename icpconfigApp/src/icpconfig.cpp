@@ -571,11 +571,11 @@ epicsShareExtern void icpconfigGetMacros(const std::string& iocName, const std::
 static int loadDefaultMacros(MAC_HANDLE *h, const std::string& config_name){
 	pugi::xml_document confXMLDoc;
 	if (macEnvExpand("$(IOC)") == NULL){
-		printf("icpconfigLoad: No $(IOC) macro, skipping load defaults\n");
+		errlogPrintf("icpconfigLoad: No $(IOC) macro, skipping load defaults\n");
 		return 0;
 	}
 	if (macEnvExpand("$(TOP)") == NULL){
-		printf("icpconfigLoad: No $(TOP) macro, skipping load defaults\n");
+		errlogPrintf("icpconfigLoad: No $(TOP) macro, skipping load defaults\n");
 		return 0;
 	}
 	std::string configXMLDir = std::string(macEnvExpand("$(IOC)")) +"/config.xml";
